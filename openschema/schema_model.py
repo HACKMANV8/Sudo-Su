@@ -37,7 +37,7 @@ class Field(BaseModel):
     categories: Optional[List[Union[str, int]]] = None
     probs: Optional[List[float]] = None
     examples: List[Any] = []
-    class_balance: Optional[Dict[Union[str, int, bool], float]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
     # Optional statistics if present in inputs; not required by spec but useful for summary
     mean: Optional[float] = None
@@ -89,10 +89,11 @@ class Field(BaseModel):
 
 
 class Schema(BaseModel):
-    name: str
-    description: str
-    n_rows: int
+    name: Optional[str] = None
+    description: Optional[str] = None
+    n_rows: int = 1000
     fields: List[Field]
+    class_balance: Optional[Dict[Union[str, int, bool], float]] = None
 
     @validator("name", pre=True)
     def _normalize_schema_name(cls, v: str) -> str:
@@ -107,7 +108,7 @@ def _fill_missing_defaults(field: Dict[str, Any]) -> Dict[str, Any]:
     field.setdefault("distribution", "uniform")
     field.setdefault("categories", None)
     field.setdefault("examples", [])
-    field.setdefault("class_balance", None)
+    field.setdefault("metadata", None)
 
     if ftype in {"int", "float"}:
         field.setdefault("min", 0)
@@ -118,7 +119,14 @@ def _fill_missing_defaults(field: Dict[str, Any]) -> Dict[str, Any]:
 
 def load_schema_from_file(path: str) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if isinstance(data, list):
+        if not data:
+            raise ValueError("Schema file contains an empty list")
+        return validate_schema(dict(data[0]))
+    if not isinstance(data, dict):
+        raise ValueError("Schema file must contain a dict or list of dicts")
+    return validate_schema(dict(data))
 
 
 def validate_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -153,8 +161,11 @@ def validate_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
 
     schema_dict["fields"] = normalized_fields
 
-    # Validate by constructing Schema
-    _ = Schema(**schema_dict)
+    # Fill top-level defaults
+    schema_dict.setdefault("n_rows", 1000)
+
+    # Validate by constructing Schema instance
+    _ = Schema(**schema_dict)  # noqa: F841
     return schema_dict
 
 
@@ -198,19 +209,6 @@ def to_json_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _bool_positive_rate(field: Dict[str, Any]) -> Optional[float]:
-    cb = field.get("class_balance")
-    if not cb:
-        return None
-    for key in (True, "true", 1, "1"):
-        if key in cb:
-            try:
-                return float(cb[key])
-            except Exception:
-                continue
-    return None
-
-
 def schema_summary(schema: Dict[str, Any]) -> str:
     fields = schema.get("fields", [])
     parts: List[str] = []
@@ -222,16 +220,6 @@ def schema_summary(schema: Dict[str, Any]) -> str:
             entry += " unique"
         if ftype == "category" and f.get("categories"):
             entry += f" {len(f['categories'])}"
-        if ftype in {"float", "int"}:
-            mean = f.get("mean")
-            std = f.get("std")
-            if mean is not None and std is not None:
-                entry += f" mean≈{int(round(mean))} std≈{int(round(std))}"
-        if ftype == "bool":
-            rate = _bool_positive_rate(f)
-            if rate is not None:
-                pct = int(round(100 * rate))
-                entry += f" {pct}%"
         entry += ")"
         parts.append(entry)
     return f"{len(fields)} fields: " + ", ".join(parts)

@@ -1,16 +1,10 @@
-OpenSchema Core Engine (skeleton) — a clean, testable foundation for schema-driven data workflows.
+OpenSchema core engine: generate reproducible synthetic datasets from normalized schema JSON (no NLP included).
 
-Note: This version assumes the NLP to Schema module is handled externally.
-
-## Installation
-
-```bash
 pip install -r requirements.txt
-```
 
-## Quickstart (CLI)
+python cli.py smoke
 
-Coming soon.
+NL→schema handled externally by teammate.
 
 """OpenSchema core engine package (skeleton).
 

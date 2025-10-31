@@ -1,3 +1,2 @@
-# Example Requests
-
+Placeholder for example requests.
 
