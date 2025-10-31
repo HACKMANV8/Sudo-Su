@@ -167,9 +167,17 @@ def generate_from_schema(
             else:
                 lo = int(f.get("min", 0))
                 hi = int(f.get("max", 100))
-                vals = rng_fields.integers(lo, hi + 1, size=n_rows).tolist()
+                if unique:
+                    domain = hi - lo + 1
+                    if domain < n_rows:
+                        raise ValueError(f"Field '{name}' requires {n_rows} unique ints but domain size is {domain}")
+                    vals = rng_fields.choice(np.arange(lo, hi + 1), size=n_rows, replace=False).astype(int).tolist()
+                else:
+                    vals = rng_fields.integers(lo, hi + 1, size=n_rows).tolist()
             if unique:
-                vals = _ensure_unique(vals, name, rng_fields, repairs)
+                # Already ensured in uniform branch; for other branches, fallback to suffix if collisions
+                if dist != "uniform" and (len(set(vals)) < len(vals)):
+                    vals = _ensure_unique(vals, name, rng_fields, repairs)
             col_data[name] = vals
 
         elif ftype == "float":

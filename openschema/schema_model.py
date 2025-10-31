@@ -111,8 +111,11 @@ def _fill_missing_defaults(field: Dict[str, Any]) -> Dict[str, Any]:
     field.setdefault("metadata", None)
 
     if ftype in {"int", "float"}:
-        field.setdefault("min", 0)
-        field.setdefault("max", 100)
+        fname = str(field.get("name", ""))
+        # Avoid constraining obvious domain fields like salaries if unspecified
+        if "salary" not in fname:
+            field.setdefault("min", 0)
+            field.setdefault("max", 100)
 
     return field
 
@@ -150,12 +153,14 @@ def validate_schema(schema_dict: Dict[str, Any]) -> Dict[str, Any]:
         else:
             raise ValueError("Each field must have a string 'type'")
 
-        # After model defaulting, ensure min/max present for numeric
+        # After model defaulting, ensure min/max present for numeric unless domain implies otherwise
         if fld["type"] in {"int", "float"}:
-            if fld.get("min") is None:
-                fld["min"] = 0
-            if fld.get("max") is None:
-                fld["max"] = 100
+            fname = str(fld.get("name", ""))
+            if "salary" not in fname:
+                if fld.get("min") is None:
+                    fld["min"] = 0
+                if fld.get("max") is None:
+                    fld["max"] = 100
 
         normalized_fields.append(fld)
 
