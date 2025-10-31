@@ -11,7 +11,6 @@ body, html {
   color: #F1F1F1; /* --text-primary */
 }
 
-/* A simple fade-in animation for messages */
 @layer utilities {
   .animate-fadeIn {
     animation: fadeIn 0.5s ease-out forwards;
@@ -21,4 +20,53 @@ body, html {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  
+  /* This creates the "lighter" background effect on the main app. */
+  .app-dimmed {
+    @apply relative;
+  }
+  .app-dimmed::before {
+    content: '';
+    @apply absolute inset-0 bg-white/10 z-10;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Styles for the Login Modal */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50;
+  }
+  .modal-content {
+    @apply bg-[#1A191F] text-[#F1F1F1] p-8 pt-10 rounded-xl shadow-2xl w-full max-w-sm relative;
+    border: 1px solid #2A2931;
+  }
+  
+  /* .modal-close-btn style was removed as it's no longer used */
+  
+  .modal-title {
+    @apply text-center text-2xl font-semibold mb-6;
+  }
+  .input-group {
+    @apply mb-4;
+  }
+  .input-group label {
+    @apply block text-sm font-medium text-[#A0A0A0] mb-1;
+  }
+  .input-group input {
+    @apply w-full p-3 bg-[#111014] border border-[#2A2931] rounded-lg text-[#F1F1F1] placeholder:text-[#555];
+    @apply focus:outline-none focus:ring-2 focus:ring-[#9333ea] focus:border-[#9333ea];
+  }
+  .modal-submit-btn {
+    @apply w-full p-3 mt-2 bg-[#9333ea] text-white rounded-lg font-semibold transition-transform;
+    @apply hover:bg-[#7e22ce] active:scale-95;
+  }
+  .modal-toggle-text {
+    @apply text-sm text-center text-[#A0A0A0] mt-6;
+  }
+  .modal-toggle-btn {
+    @apply font-semibold text-[#9333ea] hover:underline ml-1;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
 }
+
