@@ -14,9 +14,9 @@ const Message = ({ message }) => {
     <div className={`flex flex-col gap-2 animate-fadeIn ${isUser ? 'items-end' : 'items-start'}`}>
       <div className="flex flex-col gap-1">
         <div
-          className={`max-w-[90%] py-3 px-5 rounded-3xl text-base leading-relaxed shadow-md ${isUser
-              ? 'bg-[#9333ea] text-white'
-              : 'bg-[#1A191F] text-[#F1F1F1]'
+          className={`max-w-[85%] py-3 px-4 text-base leading-relaxed shadow-md ${isUser
+              ? 'bg-[#9333ea] text-white rounded-2xl rounded-tr-sm'
+              : 'bg-[#1A191F] text-[#F1F1F1] rounded-2xl rounded-tl-sm'
             }`}
         >
           {message.text}

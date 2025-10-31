@@ -29,7 +29,7 @@ const PageHeader = ({ onMenuClick }) => {
           {currentUser && (
             <button
               onClick={signOutUser}
-              className="absolute right-4 top-1/2 -translate-y-1/2 px-4 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-transform active:scale-95"
+              className="absolute right-4 top-1/2 -translate-y-1/2 px-5 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-2xl font-semibold transition-all shadow-md hover:shadow-lg active:scale-95"
             >
               Logout
             </button>
