@@ -14,7 +14,7 @@ const Message = ({ message }) => {
     <div className={`flex flex-col gap-2 animate-fadeIn ${isUser ? 'items-end' : 'items-start'}`}>
       <div className="flex flex-col gap-1">
         <div
-          className={`py-2.5 px-4 text-base leading-relaxed shadow-sm ${isUser
+          className={`p-3 text-base leading-relaxed shadow-sm ${isUser
               ? 'bg-[#9333ea] text-white rounded-2xl bubble-user'
               : 'bg-[#1A191F] text-[#F1F1F1] rounded-2xl bubble-assistant'
             }`}
