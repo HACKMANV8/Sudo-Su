@@ -110,6 +110,8 @@ body, html {
   /* Telegram-style chat bubble tails */
   .bubble-user {
     position: relative;
+    margin-right: 8px; /* keep tail outside, preserve right padding */
+    padding-right: 14px; /* ensure uniform inner right padding */
   }
   
   .bubble-user::after {
@@ -126,6 +128,8 @@ body, html {
   
   .bubble-assistant {
     position: relative;
+    margin-left: 8px; /* keep tail outside, preserve left padding */
+    padding-left: 14px; /* ensure uniform inner left padding */
   }
   
   .bubble-assistant::after {
