@@ -106,5 +106,38 @@ body, html {
     background: radial-gradient(circle at 30% 20%, rgba(147, 51, 234, 0.15), transparent 60%),
                 radial-gradient(circle at 70% 80%, rgba(147, 51, 234, 0.1), transparent 60%);
   }
+
+  /* Telegram-style chat bubble tails */
+  .bubble-user {
+    position: relative;
+  }
+  
+  .bubble-user::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 0 8px 8px;
+    border-color: transparent transparent #9333ea transparent;
+  }
+  
+  .bubble-assistant {
+    position: relative;
+  }
+  
+  .bubble-assistant::after {
+    content: '';
+    position: absolute;
+    left: -6px;
+    bottom: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 8px 8px 0;
+    border-color: transparent #1A191F transparent transparent;
+  }
 }
 

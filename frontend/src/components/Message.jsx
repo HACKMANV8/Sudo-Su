@@ -14,12 +14,15 @@ const Message = ({ message }) => {
     <div className={`flex flex-col gap-2 animate-fadeIn ${isUser ? 'items-end' : 'items-start'}`}>
       <div className="flex flex-col gap-1">
         <div
-          className={`max-w-[85%] py-3 px-4 text-base leading-relaxed shadow-md ${isUser
-              ? 'bg-[#9333ea] text-white rounded-2xl rounded-tr-sm'
-              : 'bg-[#1A191F] text-[#F1F1F1] rounded-2xl rounded-tl-sm'
+          className={`py-2.5 px-4 text-base leading-relaxed shadow-sm inline-block ${isUser
+              ? 'bg-[#9333ea] text-white rounded-2xl bubble-user'
+              : 'bg-[#1A191F] text-[#F1F1F1] rounded-2xl bubble-assistant'
             }`}
+          style={{ maxWidth: '75%' }}
         >
-          {message.text}
+          <div className="break-words whitespace-pre-wrap">
+            {message.text}
+          </div>
         </div>
         {message.createdAt && (
           <span className="text-xs text-[#A0A0A0] px-3">
