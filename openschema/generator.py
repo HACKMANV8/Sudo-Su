@@ -9,7 +9,13 @@ import numpy as np
 import pandas as pd
 from faker import Faker
 
-from .utils import init_seed, sample_datetimes_uniform, derive_subseed
+from .utils import (
+    init_seed,
+    sample_datetimes_uniform,
+    derive_subseed,
+    normalize_seed,
+    deterministic_uuid,
+)
 
 
 ROLE_SALARY_DEFAULTS: Dict[str, Tuple[float, float]] = {
@@ -59,7 +65,13 @@ def generate_from_schema(
     max_rows_limit: int = 5_000_000,
 ) -> tuple[pd.DataFrame, Dict[str, Any]]:
     start_time = time.time()
-    rng = init_seed(seed)
+    rng_master = init_seed(seed)
+    master_norm = normalize_seed(seed)
+    # Derive subsystem RNGs to avoid cross-talk
+    rng_fields = np.random.default_rng(derive_subseed(master_norm, "fields"))
+    rng_ids = np.random.default_rng(derive_subseed(master_norm, "ids"))
+    rng_text = np.random.default_rng(derive_subseed(master_norm, "text"))
+    rng_dates = np.random.default_rng(derive_subseed(master_norm, "dates"))
     faker = Faker()
 
     n_rows = int(schema.get("n_rows", 0))
@@ -88,7 +100,7 @@ def generate_from_schema(
             n1 = int(round(p1 * n_rows))
             n0 = n_rows - n1
             labels = np.array([1] * n1 + [0] * n0, dtype=int)
-            perm = rng.permutation(n_rows)
+            perm = rng_fields.permutation(n_rows)
             labels = labels[perm]
             precomputed_label = labels.tolist()
 
@@ -111,7 +123,7 @@ def generate_from_schema(
         else:
             if probs is None:
                 probs = np.full(len(cats), 1.0 / len(cats))
-            role_values = rng.choice(cats, size=n_rows, p=np.array(probs)).tolist()
+            role_values = rng_fields.choice(cats, size=n_rows, p=np.array(probs)).tolist()
         col_data[role_field_name] = role_values
 
     # Generate remaining fields
@@ -134,9 +146,9 @@ def generate_from_schema(
                 vals = [None] * n_rows
             else:
                 p = None if probs is None else np.array(probs)
-                vals = rng.choice(cats, size=n_rows, p=p).tolist()
+                vals = rng_fields.choice(cats, size=n_rows, p=p).tolist()
             if unique:
-                vals = _ensure_unique(vals, name, rng, repairs)
+                vals = _ensure_unique(vals, name, rng_fields, repairs)
             col_data[name] = vals
 
         elif ftype == "int":
@@ -146,18 +158,18 @@ def generate_from_schema(
                 means_stds = ROLE_SALARY_DEFAULTS
                 mu = np.array([means_stds.get(r, means_stds["engineer"])[0] for r in role_values])
                 sd = np.array([means_stds.get(r, means_stds["engineer"])[1] for r in role_values])
-                arr = rng.normal(loc=mu, scale=sd)
+                arr = rng_fields.normal(loc=mu, scale=sd)
                 vals = np.round(arr).astype(int).tolist()
             elif dist == "normal":
                 mu = float(f.get("mean", 0))
                 sd = float(f.get("std", 1))
-                vals = np.round(rng.normal(loc=mu, scale=sd, size=n_rows)).astype(int).tolist()
+                vals = np.round(rng_fields.normal(loc=mu, scale=sd, size=n_rows)).astype(int).tolist()
             else:
                 lo = int(f.get("min", 0))
                 hi = int(f.get("max", 100))
-                vals = rng.integers(lo, hi + 1, size=n_rows).tolist()
+                vals = rng_fields.integers(lo, hi + 1, size=n_rows).tolist()
             if unique:
-                vals = _ensure_unique(vals, name, rng, repairs)
+                vals = _ensure_unique(vals, name, rng_fields, repairs)
             col_data[name] = vals
 
         elif ftype == "float":
@@ -165,21 +177,20 @@ def generate_from_schema(
             if dist == "normal":
                 mu = float(f.get("mean", 0.0))
                 sd = float(f.get("std", 1.0))
-                vals = rng.normal(loc=mu, scale=sd, size=n_rows).tolist()
+                vals = rng_fields.normal(loc=mu, scale=sd, size=n_rows).tolist()
             else:
                 lo = float(f.get("min", 0.0))
                 hi = float(f.get("max", 100.0))
-                vals = (lo + (hi - lo) * rng.random(n_rows)).tolist()
+                vals = (lo + (hi - lo) * rng_fields.random(n_rows)).tolist()
             if unique:
-                vals = _ensure_unique(vals, name, rng, repairs)
+                vals = _ensure_unique(vals, name, rng_fields, repairs)
             col_data[name] = vals
 
         elif ftype == "string":
             fmt = (f.get("format") or "").lower()
             if fmt == "uuid":
-                subseed = derive_subseed(int(rng.bit_generator.random_raw()), name)
-                seq = _uuid5_sequence(subseed, n_rows)
-                vals = seq
+                ns = derive_subseed(master_norm, f"uuid::{name}")
+                vals = [deterministic_uuid(ns, i, name) for i in range(n_rows)]
             elif fmt == "email":
                 vals = [Faker().email() for _ in range(n_rows)]
             elif fmt == "name":
@@ -187,7 +198,7 @@ def generate_from_schema(
             else:
                 vals = [Faker().word() for _ in range(n_rows)]
             if unique:
-                vals = _ensure_unique(vals, name, rng, repairs)
+                vals = _ensure_unique(vals, name, rng_fields, repairs)
             col_data[name] = vals
 
         elif ftype == "datetime":
@@ -199,7 +210,7 @@ def generate_from_schema(
 
                 lo = datetime(2020, 1, 1)
                 hi = datetime(2021, 1, 1)
-            vals = sample_datetimes_uniform(lo, hi, n_rows, rng)
+            vals = sample_datetimes_uniform(lo, hi, n_rows, rng_dates)
             col_data[name] = vals
 
         elif ftype == "bool":
@@ -209,7 +220,7 @@ def generate_from_schema(
                 p = float(cb["1"])
             if p is None:
                 p = float(f.get("p", 0.5))
-            vals = (rng.random(n_rows) < p).astype(int).tolist()
+            vals = (rng_fields.random(n_rows) < p).astype(int).tolist()
             col_data[name] = vals
 
         elif ftype == "ip":
@@ -239,13 +250,23 @@ def generate_from_schema(
             stats["std"] = float(s.std(ddof=0))
         per_field_stats[col] = stats
 
+    # Fingerprint: combine normalized_seed + schema hash + csv hash
+    import json as _json
+    schema_hash = hashlib.md5(_json.dumps(schema, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    csv_md5 = hashlib.md5(df.to_csv(index=False).encode("utf-8")).hexdigest()
+
     report: Dict[str, Any] = {
         "seed": seed,
+        "normalized_seed": int(master_norm),
+        "user_seed_raw": seed,
         "rows_generated": int(len(df)),
         "duration_seconds": float(duration),
         "warnings": warnings,
         "repairs": repairs,
         "per_field_stats": per_field_stats,
+        "schema_hash": schema_hash,
+        "csv_hash": csv_md5,
+        "fingerprint": hashlib.md5(f"{master_norm}:{schema_hash}:{csv_md5}".encode("utf-8")).hexdigest(),
     }
 
     return df, report

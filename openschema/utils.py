@@ -20,16 +20,25 @@ def _stable_hash_to_int(value: str, bits: int = 64) -> int:
     return int_val & mask
 
 
+def normalize_seed(seed_input: int | str) -> int:
+    """Normalize user-provided seed (int or str) to a 64-bit integer.
+
+    - For strings, compute SHA-256 and reduce to 64-bit via masking.
+    - For ints, coerce to Python int and mask to 64-bit non-negative.
+    """
+    if isinstance(seed_input, str):
+        return _stable_hash_to_int(seed_input, bits=64)
+    # ensure deterministic 64-bit domain
+    return int(seed_input) & ((1 << 64) - 1)
+
+
 def init_seed(seed: int | str) -> np.random.Generator:
     """Initialize deterministic RNG state across Python random, NumPy, and Faker.
 
     - Accepts int or str seed; strings are mapped via stable hash to a 64-bit int.
     - Seeds `random`, `Faker`, and returns a NumPy `Generator` from default_rng.
     """
-    if isinstance(seed, str):
-        int_seed = _stable_hash_to_int(seed, bits=64)
-    else:
-        int_seed = int(seed)
+    int_seed = normalize_seed(seed)
 
     py_random.seed(int_seed)
     # Note: we do not mutate NumPy's legacy global state to avoid cross-talk;
@@ -45,7 +54,8 @@ def derive_subseed(master_seed: int, label: str) -> int:
     Combines the master integer seed with a label string using a stable hash,
     returning a 64-bit integer suitable for initializing separate RNGs.
     """
-    mixed = f"{master_seed}::{label}"
+    master64 = normalize_seed(master_seed)
+    mixed = f"{master64}::{label}"
     return _stable_hash_to_int(mixed, bits=64)
 
 
@@ -95,5 +105,20 @@ def human_readable_bytes(n: int) -> str:
 # Backwards-compatible aliases (if previously used)
 timedelta_random = None  # deprecated; use sample_datetimes_uniform
 human_readable_size = human_readable_bytes
+
+
+def deterministic_uuid(namespace_seed: int, index: int, name: str) -> str:
+    """Create a deterministic UUID-like string from inputs using SHA-256.
+
+    The function hashes the tuple (namespace_seed, index, name) and
+    returns a UUID string built from the first 16 bytes of the digest.
+    """
+    ns64 = normalize_seed(namespace_seed)
+    payload = f"{ns64}:{index}:{name}".encode("utf-8")
+    dig = hashlib.sha256(payload).digest()
+    # Construct a UUID from first 16 bytes for compactness
+    import uuid as _uuid
+
+    return str(_uuid.UUID(bytes=dig[:16]))
 
 
