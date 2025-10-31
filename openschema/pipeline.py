@@ -21,6 +21,8 @@ from .privacy.simulation import simulate_privacy_risk, plot_privacy_tradeoff
 from .benchmark.ml_benchmark import evaluate_ml_utility
 from .optimizer.smartsampler import smart_adapt
 from .optimizer.adaptive_engine import run_adaptive_tuning
+from .learners.relational_learner import RelationalLearner
+from .generator.relational_generator import generate_relational
 import time
 
 
@@ -162,6 +164,10 @@ def run_pipeline_from_schema(
     tune_iterations: int = 5,
     tune_budget: int = 5000,
     objective: str = "balanced",
+    learn_relations: bool = False,
+    use_relational_generation: bool = False,
+    rel_min_samples: int = 20,
+    rel_smoothing_alpha: float = 1.0,
 ) -> Dict[str, Any]:
     try:
         normalized = validate_schema(dict(schema))
@@ -184,6 +190,23 @@ def run_pipeline_from_schema(
             normalized = enriched
             crawl_meta = cmeta
 
+        # Relational learning
+        learned_priors: Optional[Dict[str, Any]] = None
+        relational_meta: Dict[str, Any] = {"used": False}
+        if learn_relations and reference_csv:
+            try:
+                learner = RelationalLearner(min_samples=rel_min_samples, smoothing_alpha=rel_smoothing_alpha)
+                # Compute schema fingerprint for cache key
+                schema_fp = _hash_str(_json_canonical(normalized), algo="sha256")
+                learned_priors = learner.fit(reference_csv, normalized, schema_fp, seed=to_normalized_seed(seed))
+                relational_meta["learned"] = True
+                relational_meta["cache_key"] = learned_priors.get("metadata", {}).get("cache_key", "")
+                relational_meta["warnings"] = learned_priors.get("warnings", [])
+            except Exception as e:
+                logging.getLogger(__name__).warning("Relational learning failed: %s", e)
+                relational_meta["learned"] = False
+                relational_meta["error"] = str(e)
+
         # Progressive setup (pre-fingerprint for temp progress dir)
         progress_collector: Dict[str, Any] = {"files": [], "rows": 0}
         def _on_chunk(ch_df, meta):
@@ -201,22 +224,53 @@ def run_pipeline_from_schema(
             progress_collector["files"].append(path)
             progress_collector["rows"] += int(meta.get("rows", len(ch_df)))
 
-        df, gen_report = generate_from_schema(
-            normalized,
-            seed=seed,
-            source_csv=source_csv,
-            mode=mode,
-            target_rows=target_rows,
-            additional_rows=additional_rows,
-            force=force,
-            preview_rows=None,
-            chunk_size=progress_step if progressive else None,
-            on_chunk_generated=_on_chunk if progressive else None,
-            gen_mode=generator_mode,
-            use_rank_copula=use_rank_copula,
-            repair_policy=repair_policy,
-            anomaly_spec=anomaly_spec,
-        )
+        # Generation: use relational generator if enabled and priors available
+        if use_relational_generation and learned_priors:
+            try:
+                n_rows_final = target_rows or normalized.get("n_rows", 1000)
+                df, rel_gen_report = generate_relational(normalized, n_rows_final, seed, learned_priors)
+                gen_report = {"rows_generated": n_rows_final}
+                gen_report["relational"] = rel_gen_report
+                relational_meta["generation"] = True
+            except Exception as e:
+                logging.getLogger(__name__).warning("Relational generation failed, falling back to standard: %s", e)
+                relational_meta["generation"] = False
+                relational_meta["fallback_error"] = str(e)
+                # Fallback to standard generation
+                df, gen_report = generate_from_schema(
+                    normalized,
+                    seed=seed,
+                    source_csv=source_csv,
+                    mode=mode,
+                    target_rows=target_rows,
+                    additional_rows=additional_rows,
+                    force=force,
+                    preview_rows=None,
+                    chunk_size=progress_step if progressive else None,
+                    on_chunk_generated=_on_chunk if progressive else None,
+                    gen_mode=generator_mode,
+                    use_rank_copula=use_rank_copula,
+                    repair_policy=repair_policy,
+                    anomaly_spec=anomaly_spec,
+                )
+        else:
+            # Standard generation
+            df, gen_report = generate_from_schema(
+                normalized,
+                seed=seed,
+                source_csv=source_csv,
+                mode=mode,
+                target_rows=target_rows,
+                additional_rows=additional_rows,
+                force=force,
+                preview_rows=None,
+                chunk_size=progress_step if progressive else None,
+                on_chunk_generated=_on_chunk if progressive else None,
+                gen_mode=generator_mode,
+                use_rank_copula=use_rank_copula,
+                repair_policy=repair_policy,
+                anomaly_spec=anomaly_spec,
+            )
         validation = validate_dataframe(df, normalized, tolerance={"class_balance": 0.01})
         realism = score_realism(df, normalized)
 
@@ -277,6 +331,7 @@ def run_pipeline_from_schema(
             gen_report["rows_completed"] = progress_collector["rows"]
 
         gen_report["crawl4ai"] = crawl_meta
+        gen_report["relational"] = relational_meta
         # Privacy simulation
         if simulate_privacy and privacy_reference_csv:
             try:

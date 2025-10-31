@@ -69,7 +69,7 @@ class RelationalLearner:
             warnings.append(f"Schema columns not in reference: {missing}")
         
         categorical_priors: Dict[str, Dict[str, Any]] = {}
-        conditional_numeric: Dict[str, Dict[str, Dict[str, Dict[str, float]]]]] = {}
+        conditional_numeric: Dict[str, Dict[str, Dict[str, Dict[str, float]]]] = {}
         conditional_categorical: Dict[str, Dict[str, Dict[str, Dict[str, Any]]]] = {}
         global_numeric: Dict[str, Dict[str, float]] = {}
         

@@ -53,6 +53,10 @@ def cmd_generate(ns: argparse.Namespace) -> int:
             tune_iterations=getattr(ns, "tune_iterations", 5),
             tune_budget=getattr(ns, "tune_budget", 5000),
             objective=getattr(ns, "objective", "balanced"),
+            learn_relations=getattr(ns, "learn_relations", False),
+            use_relational_generation=getattr(ns, "use_relational_generation", False),
+            rel_min_samples=getattr(ns, "rel_min_samples", 20),
+            rel_smoothing_alpha=getattr(ns, "rel_smoothing_alpha", 1.0),
         )
         if not res.get("ok"):
             print(f"ERROR: {res.get('error')}")
@@ -142,6 +146,10 @@ def main() -> None:
     p_gen.add_argument("--tune-iterations", dest="tune_iterations", type=int, default=5)
     p_gen.add_argument("--tune-budget", dest="tune_budget", type=int, default=5000)
     p_gen.add_argument("--objective", choices=["realism", "utility", "privacy", "balanced"], default="balanced")
+    p_gen.add_argument("--learn-relations", action="store_true")
+    p_gen.add_argument("--use-relational-generation", action="store_true")
+    p_gen.add_argument("--rel-min-samples", dest="rel_min_samples", type=int, default=20)
+    p_gen.add_argument("--rel-smoothing-alpha", dest="rel_smoothing_alpha", type=float, default=1.0)
     p_gen.add_argument("--force", action="store_true")
     p_gen.add_argument("--verbose", action="store_true")
     p_gen.set_defaults(func=cmd_generate)
