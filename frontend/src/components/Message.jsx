@@ -18,9 +18,9 @@ const Message = ({ message }) => {
               ? 'bg-[#9333ea] text-white rounded-2xl bubble-user'
               : 'bg-[#1A191F] text-[#F1F1F1] rounded-2xl bubble-assistant'
             }`}
-          style={{ maxWidth: '75%' }}
+          style={{ maxWidth: '85%', wordBreak: 'normal', overflowWrap: 'break-word' }}
         >
-          <div className="break-words whitespace-pre-wrap">
+          <div className="whitespace-pre-wrap">
             {message.text}
           </div>
         </div>
