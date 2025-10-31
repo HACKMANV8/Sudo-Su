@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NewChatIcon } from './Icons.jsx';
+import LoadingDots from './LoadingDots.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { subscribeToUserChats, createChatForUser, updateChatTitle, removeChatForUser } from '../firebase/rtdb.js';
 
@@ -147,7 +148,10 @@ const Sidebar = ({ isOpen, onClose, activeChatId, onSelectChat }) => {
         </div>
         <nav className="flex-grow overflow-y-auto">
           {isLoading ? (
-            <div className="text-center py-4 text-[#A0A0A0]">Loading chats...</div>
+            <div className="text-center py-4 text-[#A0A0A0] flex items-center justify-center gap-2">
+              <LoadingDots size="w-1.5 h-1.5" color="bg-[#A0A0A0]" />
+              <span>Loading chats...</span>
+            </div>
           ) : chats.length === 0 ? (
             <div className="text-center py-4 text-[#A0A0A0]">No chats yet. Create a new chat to begin!</div>
           ) : chats.map(item => (

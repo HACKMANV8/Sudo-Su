@@ -3,13 +3,14 @@ import PageHeader from './components/PageHeader.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import ChatArea from './components/ChatArea.jsx';
 import LoginModal from './components/loginmodal.jsx';
+import LoadingDots from './components/LoadingDots.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 // Main App Content Component
 function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
   const [activeChatId, setActiveChatId] = useState(null);
 
   return (

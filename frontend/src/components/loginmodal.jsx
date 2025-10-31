@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LogoIcon } from './Icons.jsx';
+import LoadingDots from './LoadingDots.jsx';
 import { signIn, signUp, sendPasswordReset } from '../firebase/auth.js';
 
 const LoginModal = () => {
@@ -131,8 +132,19 @@ const LoginModal = () => {
           )}
 
           {/* Submit Button */}
-          <button type="submit" className="modal-submit-btn">
-            {isResetView ? 'Send Reset Email' : isLoginView ? 'Login' : 'Sign Up'}
+          <button 
+            type="submit" 
+            className="modal-submit-btn flex items-center justify-center gap-2"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <LoadingDots size="w-2 h-2" color="bg-white" />
+                <span>Loading...</span>
+              </>
+            ) : (
+              isResetView ? 'Send Reset Email' : isLoginView ? 'Login' : 'Sign Up'
+            )}
           </button>
         </form>
 

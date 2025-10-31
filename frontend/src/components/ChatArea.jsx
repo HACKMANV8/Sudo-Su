@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Message from './Message.jsx';
+import LoadingDots from './LoadingDots.jsx';
 import { UploadIcon, SendIcon } from './Icons.jsx';
 import { sendMessageToChat, subscribeToChatMessages } from '../firebase/rtdb.js';
 
@@ -10,10 +11,11 @@ const ChatArea = ({ activeChatId }) => {
 
   // messages are either loaded from RTDB (when logged in and chat selected) or local mocks when not
   const [messages, setMessages] = useState([
-    { id: 1, sender: 'user', text: 'Generate 1000 rows from ecommerce.yaml' },
-    { id: 2, sender: 'assistant', text: 'Okay, I am generating 1000 rows based on the provided `ecommerce.yaml` schema...' },
+    { id: 1, sender: 'user', text: 'Generate 1000 rows from ecommerce.yaml', createdAt: Date.now() },
+    { id: 2, sender: 'assistant', text: 'Okay, I am generating 1000 rows based on the provided `ecommerce.yaml` schema...', createdAt: Date.now() + 1000 },
   ]);
   const [input, setInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Automatically scroll to the bottom when a new message appears
@@ -27,7 +29,7 @@ const ChatArea = ({ activeChatId }) => {
 
     const uid = currentUser.uid;
     const unsubscribe = subscribeToChatMessages(uid, activeChatId, (msgs) => {
-      const normalized = msgs.map(m => ({ id: m.id, sender: m.sender, text: m.text }));
+      const normalized = msgs.map(m => ({ id: m.id, sender: m.sender, text: m.text, createdAt: m.createdAt }));
       setMessages(normalized);
     });
 
@@ -36,13 +38,16 @@ const ChatArea = ({ activeChatId }) => {
 
   // Handles sending a new message
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isSending) return;
 
     const text = input.trim();
     setInput('');
+    setIsSending(true);
+
+    const timestamp = Date.now();
 
     // Optimistic add to UI
-    const userMessage = { id: `temp-${Date.now()}`, sender: 'user', text };
+    const userMessage = { id: `temp-${timestamp}`, sender: 'user', text, createdAt: timestamp };
     setMessages(prev => [...prev, userMessage]);
 
     // Persist user message to RTDB when logged in and a chat is selected
@@ -56,7 +61,8 @@ const ChatArea = ({ activeChatId }) => {
     // Mock assistant reply and persist it as well
     setTimeout(async () => {
       const assistantText = 'Processing your request...';
-      const assistantMessage = { id: `temp-${Date.now() + 1}`, sender: 'assistant', text: assistantText };
+      const assistantTimestamp = Date.now();
+      const assistantMessage = { id: `temp-${assistantTimestamp}`, sender: 'assistant', text: assistantText, createdAt: assistantTimestamp };
       setMessages(prev => [...prev, assistantMessage]);
 
       if (currentUser && activeChatId) {
@@ -65,6 +71,8 @@ const ChatArea = ({ activeChatId }) => {
           console.error('Failed to save assistant message:', error);
         }
       }
+      
+      setIsSending(false);
     }, 1000);
   };
 
@@ -99,12 +107,16 @@ const ChatArea = ({ activeChatId }) => {
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
             <button
-              className="p-4 text-[#9333ea] disabled:text-[#585858]"
+              className="p-4 text-[#9333ea] disabled:text-[#585858] flex items-center justify-center"
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isSending}
               aria-label="Send message"
             >
-              <SendIcon />
+              {isSending ? (
+                <LoadingDots size="w-2 h-2" color="bg-[#9333ea]" />
+              ) : (
+                <SendIcon />
+              )}
             </button>
           </div>
         </div>

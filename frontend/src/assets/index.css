@@ -9,6 +9,9 @@ body, html {
   background-color: #171717; /* --background-sidebar */
   font-family: 'Inter', sans-serif;
   color: #F1F1F1; /* --text-primary */
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer utilities {
@@ -36,10 +39,17 @@ body, html {
   @keyframes bounce-dot {
     0%, 80%, 100% {
       transform: scale(0);
+      opacity: 0.5;
     }
     40% {
       transform: scale(1);
+      opacity: 1;
     }
+  }
+  
+  /* Smooth transitions for buttons */
+  .smooth-transition {
+    transition: all 0.2s ease-in-out;
   }
   
   /* This creates the "lighter" background effect on the main app. */
@@ -73,12 +83,13 @@ body, html {
     @apply block text-sm font-medium text-[#A0A0A0] mb-1;
   }
   .input-group input {
-    @apply w-full p-3 bg-[#111014] border border-[#2A2931] rounded-lg text-[#F1F1F1] placeholder:text-[#555];
+    @apply w-full p-3 bg-[#111014] border border-[#2A2931] rounded-xl text-[#F1F1F1] placeholder:text-[#555];
     @apply focus:outline-none focus:ring-2 focus:ring-[#9333ea] focus:border-[#9333ea];
+    transition: all 0.2s ease-in-out;
   }
   .modal-submit-btn {
-    @apply w-full p-3 mt-2 bg-[#9333ea] text-white rounded-lg font-semibold transition-transform;
-    @apply hover:bg-[#7e22ce] active:scale-95;
+    @apply w-full p-3 mt-2 bg-[#9333ea] text-white rounded-xl font-semibold transition-all;
+    @apply hover:bg-[#7e22ce] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .modal-toggle-text {
     @apply text-sm text-center text-[#A0A0A0] mt-6;
