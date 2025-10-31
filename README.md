@@ -6,6 +6,8 @@ python cli.py smoke
 
 NL→schema handled externally by teammate.
 
+Determinism: utilities seed Python `random`, NumPy `default_rng`, and `Faker` using stable hashing for string seeds.
+
 """OpenSchema core engine package (skeleton).
 
 This repository hosts the core engine foundation. NLP-to-Schema is assumed
