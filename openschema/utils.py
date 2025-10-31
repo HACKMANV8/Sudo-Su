@@ -122,3 +122,47 @@ def deterministic_uuid(namespace_seed: int, index: int, name: str) -> str:
     return str(_uuid.UUID(bytes=dig[:16]))
 
 
+def compute_file_hash(path: str, algo: str = "md5") -> str:
+    """Compute canonical file hash (md5 by default) for CSV or any file.
+
+    Reads in chunks to avoid memory bloat.
+    """
+    import hashlib as _hashlib
+
+    h = _hashlib.new(algo)
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+class profile_timer:
+    """Context manager to measure elapsed time and compute rows/sec.
+
+    Usage:
+        with profile_timer(n_rows) as t:
+            ...
+        print(t.elapsed, t.rows_per_sec)
+    """
+
+    def __init__(self, n_rows: int) -> None:
+        self.n_rows = int(n_rows)
+        self.start = None
+        self.elapsed = 0.0
+        self.rows_per_sec = 0.0
+
+    def __enter__(self):
+        import time as _time
+
+        self.start = _time.time()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        import time as _time
+
+        self.elapsed = _time.time() - (self.start or _time.time())
+        if self.elapsed > 0:
+            self.rows_per_sec = float(self.n_rows) / self.elapsed
+        return False
+
+

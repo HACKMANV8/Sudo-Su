@@ -37,6 +37,11 @@ def run_pipeline_from_schema(
     confirm_schema: bool = False,
     out_csv: Optional[str] = None,
     verbose: bool = False,
+    source_csv: Optional[str] = None,
+    mode: Optional[str] = None,
+    target_rows: Optional[int] = None,
+    additional_rows: Optional[int] = None,
+    force: bool = False,
 ) -> Dict[str, Any]:
     try:
         normalized = validate_schema(dict(schema))
@@ -47,7 +52,15 @@ def run_pipeline_from_schema(
                 "schema_summary": schema_summary(normalized),
             }
 
-        df, gen_report = generate_from_schema(normalized, seed=seed)
+        df, gen_report = generate_from_schema(
+            normalized,
+            seed=seed,
+            source_csv=source_csv,
+            mode=mode,
+            target_rows=target_rows,
+            additional_rows=additional_rows,
+            force=force,
+        )
         validation = validate_dataframe(df, normalized, tolerance={"class_balance": 0.01})
         realism = score_realism(df, normalized)
 
