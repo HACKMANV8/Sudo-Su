@@ -1,0 +1,11 @@
+pandas
+numpy
+faker
+scikit-learn
+joblib
+jsonschema
+scipy
+pydantic
+pytest
+
+

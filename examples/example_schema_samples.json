@@ -1,0 +1,30 @@
+[
+  {
+    "name": "employee_records",
+    "description": "normalized employee schema",
+    "n_rows": 1000,
+    "fields": [
+      {"name": "id", "type": "int", "unique": true},
+      {"name": "role", "type": "category", "categories": ["staff", "manager", "exec"]},
+      {"name": "start_date", "type": "datetime"}
+    ]
+  },
+  {
+    "name": "web_events",
+    "fields": [
+      {"name": "event_id", "type": "string", "unique": true},
+      {"name": "ip_address", "type": "ip"},
+      {"name": "success", "type": "bool", "nullable": 0.0}
+    ]
+  },
+  {
+    "name": "product_catalog",
+    "fields": [
+      {"name": "sku", "type": "string", "unique": true},
+      {"name": "price", "type": "float", "min": 0, "max": 1000},
+      {"name": "category", "type": "category", "categories": ["a", "b", "c"]}
+    ]
+  }
+]
+
+
