@@ -1,0 +1,5 @@
+spacy==3.7.2
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
+pandas==2.0.3
+numpy==1.24.3
+python-dateutil==2.8.2
