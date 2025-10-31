@@ -3,10 +3,10 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Message from './Message.jsx';
 import LoadingDots from './LoadingDots.jsx';
 import { UploadIcon, SendIcon } from './Icons.jsx';
-import { sendMessageToChat, subscribeToChatMessages } from '../firebase/rtdb.js';
+import { sendMessageToChat, subscribeToChatMessages, createChatForUser } from '../firebase/rtdb.js';
 
 // This is the main interaction area
-const ChatArea = ({ activeChatId }) => {
+const ChatArea = ({ activeChatId, onSelectChat }) => {
   const { currentUser } = useAuth();
 
   // messages are loaded from RTDB when logged in and chat selected
@@ -45,21 +45,38 @@ const ChatArea = ({ activeChatId }) => {
 
   // Handles sending a new message
   const handleSend = async () => {
-    if (!input.trim() || isSending) return;
+    if (!input.trim() || isSending || !currentUser) return;
 
     const text = input.trim();
     setInput('');
     setIsSending(true);
 
     const timestamp = Date.now();
+    let chatId = activeChatId;
+
+    // If no active chat exists, create a new one with the message as title
+    if (!chatId) {
+      const title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+      const { id, error } = await createChatForUser(currentUser.uid, title);
+      if (error) {
+        console.error('Failed to create chat:', error);
+        setIsSending(false);
+        return;
+      }
+      chatId = id;
+      // Notify parent to select this chat
+      if (typeof onSelectChat === 'function') {
+        onSelectChat(chatId);
+      }
+    }
 
     // Optimistic add to UI
     const userMessage = { id: `temp-${timestamp}`, sender: 'user', text, createdAt: timestamp };
     setMessages(prev => [...prev, userMessage]);
 
-    // Persist user message to RTDB when logged in and a chat is selected
-    if (currentUser && activeChatId) {
-      const { error } = await sendMessageToChat(currentUser.uid, activeChatId, { sender: 'user', text });
+    // Persist user message to RTDB
+    if (chatId) {
+      const { error } = await sendMessageToChat(currentUser.uid, chatId, { sender: 'user', text });
       if (error) {
         console.error('Failed to save user message:', error);
       }
@@ -72,8 +89,8 @@ const ChatArea = ({ activeChatId }) => {
       const assistantMessage = { id: `temp-${assistantTimestamp}`, sender: 'assistant', text: assistantText, createdAt: assistantTimestamp };
       setMessages(prev => [...prev, assistantMessage]);
 
-      if (currentUser && activeChatId) {
-        const { error } = await sendMessageToChat(currentUser.uid, activeChatId, { sender: 'assistant', text: assistantText });
+      if (chatId) {
+        const { error } = await sendMessageToChat(currentUser.uid, chatId, { sender: 'assistant', text: assistantText });
         if (error) {
           console.error('Failed to save assistant message:', error);
         }

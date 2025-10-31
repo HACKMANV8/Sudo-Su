@@ -29,7 +29,7 @@ function AppContent() {
             activeChatId={activeChatId}
             onSelectChat={(id) => setActiveChatId(id)}
           />
-          <ChatArea activeChatId={activeChatId} />
+          <ChatArea activeChatId={activeChatId} onSelectChat={(id) => setActiveChatId(id)} />
         </div>
       </div>
 
