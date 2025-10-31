@@ -3,8 +3,8 @@ import PageHeader from './components/PageHeader.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import ChatArea from './components/ChatArea.jsx';
 import LoginModal from './components/loginmodal.jsx';
-import { AuthProvider } from './context/AuthContext';
-import { useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext.jsx';
+import { useAuth } from './context/AuthContext.jsx';
 
 // Main App Content Component
 function AppContent() {

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
-// FIX: Removing .jsx extension to let the bundler resolve the correct file
-import Message from './Message';
-import { UploadIcon, SendIcon } from './Icons';
-import { sendMessageToChat, subscribeToChatMessages } from '../firebase/rtdb';
+import { useAuth } from '../context/AuthContext.jsx';
+import Message from './Message.jsx';
+import { UploadIcon, SendIcon } from './Icons.jsx';
+import { sendMessageToChat, subscribeToChatMessages } from '../firebase/rtdb.js';
 
 // This is the main interaction area
 const ChatArea = ({ activeChatId }) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NewChatIcon } from './Icons.jsx';
-import { useAuth } from '../context/AuthContext';
-import { subscribeToUserChats, createChatForUser, updateChatTitle, removeChatForUser } from '../firebase/rtdb';
+import { useAuth } from '../context/AuthContext.jsx';
+import { subscribeToUserChats, createChatForUser, updateChatTitle, removeChatForUser } from '../firebase/rtdb.js';
 
 // This is the navigation panel on the left
 const ChatItem = ({ item, currentUser, activeChatId, onSelectChat, onClose }) => {

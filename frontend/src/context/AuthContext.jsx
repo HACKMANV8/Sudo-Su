@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { subscribeToAuthChanges } from '../firebase/auth';
+import { subscribeToAuthChanges } from '../firebase/auth.js';
 
 const AuthContext = createContext();
 

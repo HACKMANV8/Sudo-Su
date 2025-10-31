@@ -1,7 +1,7 @@
 import React from 'react';
 import { LogoIcon, MenuIcon } from './Icons.jsx';
-import { useAuth } from '../context/AuthContext';
-import { signOutUser } from '../firebase/auth';
+import { useAuth } from '../context/AuthContext.jsx';
+import { signOutUser } from '../firebase/auth.js';
 
 const PageHeader = ({ onMenuClick }) => {
   const { currentUser } = useAuth();

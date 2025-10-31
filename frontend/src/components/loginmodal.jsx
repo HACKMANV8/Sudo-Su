@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LogoIcon } from './Icons.jsx';
-import { signIn, signUp, sendPasswordReset } from '../firebase/auth';
+import { signIn, signUp, sendPasswordReset } from '../firebase/auth.js';
 
 const LoginModal = () => {
   const [isLoginView, setIsLoginView] = useState(true);
