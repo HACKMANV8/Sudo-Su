@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DatasetIntent",
+  "type": "object",
+  "required": ["domain", "goal", "records_target", "columns"],
+  "properties": {
+    "name": {"type": "string"},
+    "domain": {"type": "string"},
+    "audience": {"type": "string"},
+    "goal": {"type": "string"},
+    "tone": {"type": "string"},
+    "records_target": {"type": "integer", "minimum": 1},
+    "entities": {"type": "array", "items": {"type": "string"}},
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "privacy_flags": {"type": "array", "items": {"type": "string"}},
+    "examples": {"type": "array", "items": {"type": "object"}},
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "type": {"type": "string", "enum": [
+            "string", "integer", "float", "boolean", "date", "datetime", "enum"
+          ]},
+          "description": {"type": "string"},
+          "nullable": {"type": "boolean"},
+          "examples": {"type": "array", "items": {"type": "string"}},
+          "constraints": {
+            "type": "object",
+            "properties": {
+              "min": {"type": ["number", "string"]},
+              "max": {"type": ["number", "string"]},
+              "regex": {"type": "string"},
+              "enum": {"type": "array", "items": {"type": ["string", "number", "boolean"]}},
+              "unique": {"type": "boolean"},
+              "pii": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    "notes": {"type": "string"},
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "open_questions": {"type": "array", "items": {"type": "string"}}
+  }
+}

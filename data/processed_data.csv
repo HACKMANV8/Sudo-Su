@@ -1,6 +1,0 @@
-id,text,category,processed_text,processed_text_tokens
-1,Hello world! This is amazing.,general,hello world amazing,"['hello', 'world', 'amazing']"
-2,The quick brown fox jumps over the lazy dog.,animals,quick brown fox jump lazy dog,"['quick', 'brown', 'fox', 'jump', 'lazy', 'dog']"
-3,I love machine learning and artificial intelligence!,ai,love machine learning artificial intelligence,"['love', 'machine', 'learning', 'artificial', 'intelligence']"
-4,Text preprocessing is essential for NLP projects.,nlp,text preprocessing essential nlp project,"['text', 'preprocessing', 'essential', 'nlp', 'project']"
-5,Spark NLP makes everything so much easier!,tools,spark nlp make easy,"['spark', 'nlp', 'make', 'easy']"

@@ -1,236 +1,133 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from dotenv import load_dotenv
+import argparse
+import glob
+import json
 
-from preprocessing.spacy_preprocessor import SpacyTextPreprocessor
-from expansion.dataset_expander import DatasetExpander
-from evaluation.semantic_evaluator import SemanticEvaluator
-from review.human_review import review_csv
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from dotenv import load_dotenv
+from intent.intent_parser import parse_intent
+from schema.schema_builder import build_schema_for_csv, build_schema_from_intent
+from metadata.augmenter import augment_metadata, augment_from_schema
+from review.schema_review import review_schemas_in_dir
+
 
 def main():
-    print("🚀 Starting Hackathon Pipeline with Google Gemini")
-    
+    """Intent-only entrypoint: interpret NL request into DatasetIntent JSON."""
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Interpret user intent, build schemas, and augment metadata for CSVs in data/")
+    parser.add_argument("--prompt", dest="prompt", type=str, required=False,
+                        help="Natural language description of the desired dataset")
+    parser.add_argument("--out", dest="out", type=str, default="specs/intent.json",
+                        help="Output path for the intent JSON (default: specs/intent.json)")
+    parser.add_argument("--data_dir", dest="data_dir", type=str, default="data",
+                        help="Directory containing CSV files (default: data)")
+    parser.add_argument("--rows", dest="rows", type=int, default=20,
+                        help="Number of sample rows to include in prompts (default: 20)")
+    parser.add_argument("--use_csv", dest="use_csv", choices=["ask","yes","no"], default="ask",
+                        help="Whether to use CSV context (ask/yes/no). Default ask")
+    parser.add_argument("--hil", dest="hil", action="store_true",
+                        help="Enable Human-in-the-Loop schema review at the end")
+    args = parser.parse_args()
+
+    prompt = args.prompt or os.getenv("INTENT_PROMPT")
+    if not prompt:
+        # Try to collect prompt interactively; fall back to example if unavailable
+        try:
+            user_in = input(
+                "ON what topic you need the schema give the query for it: "
+            ).strip()
+        except Exception:
+            user_in = ""
+        if user_in:
+            prompt = user_in
+        else:
+            prompt = (
+                "Create a customer feedback dataset for a food delivery app, with sentiment, category, and timestamp. ~5k rows."
+            )
+            print("Using example prompt (no input provided).")
+
     try:
-        # Load environment variables from .env (so you don't have to paste the key each run)
-        load_dotenv()
-        # ==================================================
-        # STEP 1: TEXT PREPROCESSING
-        # ==================================================
-        print("\n" + "="*60)
-        print("STEP 1: TEXT PREPROCESSING & CLEANING")
-        print("="*60)
-        
-        preprocessor = SpacyTextPreprocessor()
-        
-        # Process CSV file
-        print("\n📁 Processing CSV file...")
-        processed_data = preprocessor.preprocess_csv(
-            csv_path="data/sample.csv",
-            text_column="text",
-            output_path="data/processed_data.csv"
-        )
-        
-        # Process individual texts
-        print("\n🔤 Processing individual texts...")
-        custom_texts = [
-            "I'm working on a hackathon project for dataset generation!",
-            "Natural Language Processing is fascinating with spaCy.",
-            "Can't wait to see the results after preprocessing!",
-            "Email me at hello@example.com or visit http://example.org"
-        ]
-        
-        results = preprocessor.batch_process_texts(custom_texts, return_type="full")
-        
-        print("\n" + "="*50)
-        print("CUSTOM TEXTS PROCESSING")
-        print("="*50)
-        
-        for i, (original, result) in enumerate(zip(custom_texts, results)):
-            print(f"\nText {i+1}:")
-            print(f"Original: {original}")
-            print(f"Processed: {result['processed_text']}")
-            print(f"Token Count: {result['token_count']}")
-        
-        # ==================================================
-        # STEP 2: GEMINI DATASET EXPANSION
-        # ==================================================
-        print("\n" + "="*60)
-        print("STEP 2: GEMINI DATASET EXPANSION")
-        print("="*60)
-        
-        # Get API key from environment or user input
-        api_key = os.getenv('GOOGLE_API_KEY')
-        if not api_key:
-            print("🔑 Please set your Google API key as environment variable GOOGLE_API_KEY")
-            print("   Or enter it here (will not be saved):")
-            api_key = input("Google API Key: ").strip()
-        
-        if api_key:
-            expander = DatasetExpander(use_gemini=True, gemini_api_key=api_key)
-            
-            print("\n📈 Expanding dataset with Gemini...")
-            expanded_data = expander.expand_csv(
-                input_path="data/processed_data.csv",
-                output_path="data/expanded_dataset_gemini.csv",
-                text_column="processed_text",
-                expansion_factor=2
-            )
+        intent = parse_intent(prompt, save_path=args.out)
+        print("\n✅ Intent parsed and validated.")
+        print(f"Saved to: {args.out}")
+        os.makedirs("specs", exist_ok=True)
 
-            # ==================================================
-            # STEP 3: SEMANTIC EVALUATION & SIMILARITY CHECK
-            # ==================================================
-            print("\n" + "="*60)
-            print("MODULE 3: SEMANTIC EVALUATION & SIMILARITY CHECK")
-            print("="*60)
-            evaluator = SemanticEvaluator()
-            scored = evaluator.score_csv(
-                input_path="data/expanded_dataset_gemini.csv",
-                output_path="data/expanded_scored.csv",
-                text_column="processed_text",
-                original_ref_column="original_text",
-                threshold=0.75
-            )
-            auto_pass_count = int(scored['auto_pass'].sum()) if 'auto_pass' in scored.columns else 0
-            print(f"Auto-approved items: {auto_pass_count}/{len(scored)}")
-
-            # ==================================================
-            # STEP 4: HUMAN-IN-THE-LOOP REVIEW (optional)
-            # ==================================================
-            print("\n" + "="*60)
-            print("MODULE 4: HUMAN-IN-THE-LOOP REVIEW (optional)")
-            print("="*60)
-            start_review = os.getenv('HIL_REVIEW', '').lower() in ['1','true','yes','y']
-            if not start_review:
-                try:
-                    answer = input("Start interactive review for low-similarity items now? [y/N]: ").strip().lower()
-                    start_review = answer == 'y'
-                except Exception:
-                    start_review = False
-            if start_review:
-                review_csv(
-                    input_csv="data/expanded_scored.csv",
-                    output_csv="data/reviewed_dataset.csv",
-                    text_column="processed_text",
-                    original_ref_column="original_text",
-                    auto_accept_threshold=0.85,
-                    only_review_below=0.85
-                )
-            else:
-                print("Skipping interactive review. You can run it later:")
-                print("- Set HIL_REVIEW=1 and re-run main.py, or")
-                print("- From Python: from review.human_review import review_csv; review_csv('data/expanded_scored.csv','data/reviewed_dataset.csv')")
+        # Decide CSV usage
+        use_csv = None
+        if args.use_csv == "yes":
+            use_csv = True
+        elif args.use_csv == "no":
+            use_csv = False
         else:
-            print("❌ No API key provided. Using T5 fallback...")
-            expander = DatasetExpander(use_gemini=False)
-            expanded_data = expander.expand_csv(
-                input_path="data/processed_data.csv",
-                output_path="data/expanded_dataset_t5.csv",
-                text_column="processed_text",
-                expansion_factor=2
-            )
-        
-        # ==================================================
-        # STEP 5: RESULTS SUMMARY
-        # ==================================================
-        print("\n" + "="*60)
-        print("🎉 PIPELINE COMPLETED SUCCESSFULLY!")
-        print("="*60)
-        
-        original_size = len(processed_data) if hasattr(processed_data, '__len__') else 0
-        expanded_size = len(expanded_data) if hasattr(expanded_data, '__len__') else 0
-        
-        print(f"\n📊 PREPROCESSING RESULTS:")
-        print(f"   • Processed {original_size} rows from CSV")
-        print(f"   • Processed {len(custom_texts)} custom texts")
-        
-        print(f"\n📈 EXPANSION RESULTS:")
-        print(f"   • Original dataset: {original_size} rows")
-        print(f"   • Expanded dataset: {expanded_size} rows")
-        if original_size > 0:
-            print(f"   • Expansion factor: {expanded_size/original_size:.1f}x")
-        
-        print(f"\n💾 OUTPUT FILES:")
-        print(f"   • Cleaned data: data/processed_data.csv")
-        if api_key:
-            print(f"   • Gemini expanded data: data/expanded_dataset_gemini.csv")
-            print(f"   • Scored data: data/expanded_scored.csv")
-            # If review file exists, list it too
-            if os.path.exists("data/reviewed_dataset.csv"):
-                print(f"   • Reviewed: data/reviewed_dataset.csv")
-        else:
-            print(f"   • T5 expanded data: data/expanded_dataset_t5.csv")
-
-        # ==========================
-        # MODULE RESULTS SUMMARIES
-        # ==========================
-        if api_key:
-            # Evaluation summary
-            print("\n🧮 EVALUATION SUMMARY:")
+            # ask interactively if possible
             try:
-                import pandas as pd
-                scored_df = pd.read_csv("data/expanded_scored.csv")
-                avg_sim = scored_df["similarity"].mean() if "similarity" in scored_df else None
-                avg_cov = scored_df["coverage"].mean() if "coverage" in scored_df else None
-                auto_pass = int(scored_df["auto_pass"].sum()) if "auto_pass" in scored_df else 0
-                total = len(scored_df)
-                if avg_sim is not None:
-                    print(f"   • Avg similarity: {avg_sim:.3f}")
-                if avg_cov is not None:
-                    print(f"   • Avg coverage: {avg_cov:.3f}")
-                print(f"   • Auto-approved: {auto_pass}/{total}")
+                answer = input("Use CSV files in 'data/' to ground the schema/metadata? [Y/n]: ").strip().lower()
+                use_csv = (answer in ["", "y", "yes"])
             except Exception:
-                print("   • Scored file not available for summary.")
+                use_csv = True
 
-            # Human review summary (if present)
-            if os.path.exists("data/reviewed_dataset.csv"):
-                print("\n🧑‍⚖️ HUMAN REVIEW SUMMARY:")
-                try:
-                    reviewed_df = pd.read_csv("data/reviewed_dataset.csv")
-                    for status in ["accepted", "edited", "rejected", "pending"]:
-                        count = int((reviewed_df.get("status") == status).sum()) if "status" in reviewed_df else 0
-                        print(f"   • {status.capitalize()}: {count}")
-                except Exception:
-                    print("   • Could not read reviewed dataset summary.")
-        
+        generated_schema_files = []
+
+        if use_csv:
+            # Discover CSV files
+            csv_files = sorted(glob.glob(os.path.join(args.data_dir, "*.csv")))
+            if not csv_files:
+                print(f"No CSV files found in {args.data_dir}. Skipping schema/metadata steps.")
+            else:
+                for csv_path in csv_files:
+                    base = os.path.splitext(os.path.basename(csv_path))[0]
+                    schema_out = os.path.join("specs", f"{base}_schema.json")
+                    meta_out = os.path.join("specs", f"{base}_metadata.json")
+
+                    print(f"\n🧩 Building schema for: {csv_path}")
+                    schema = build_schema_for_csv(csv_path, natural_prompt=prompt, n_rows=args.rows)
+                    with open(schema_out, 'w') as f:
+                        json.dump(schema, f, indent=2)
+                    generated_schema_files.append(schema_out)
+                    print(f"   • Wrote {schema_out}")
+
+                    print(f"📝 Augmenting metadata for: {csv_path}")
+                    metadata = augment_metadata(csv_path, schema=schema, natural_prompt=prompt, n_rows=max(args.rows, 50))
+                    with open(meta_out, 'w') as f:
+                        json.dump(metadata, f, indent=2)
+                    print(f"   • Wrote {meta_out}")
+        else:
+            # Build schema purely from intent
+            only_out = os.path.join("specs", "intent_only_schema.json")
+            print("\n🧩 Building schema from intent only (no CSV context)...")
+            schema = build_schema_from_intent(prompt)
+            with open(only_out, 'w') as f:
+                json.dump(schema, f, indent=2)
+            generated_schema_files.append(only_out)
+            print(f"   • Wrote {only_out}")
+
+            # Augment metadata from schema + intent (no CSV profile)
+            meta_out = os.path.join("specs", "intent_only_metadata.json")
+            print("📝 Augmenting metadata from schema (no CSV)...")
+            metadata = augment_from_schema(schema, natural_prompt=prompt)
+            with open(meta_out, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            print(f"   • Wrote {meta_out}")
+
+        # Human-in-the-loop review
+        start_hil = args.hil
+        if not start_hil and generated_schema_files:
+            try:
+                ans = input("Start schema review now? [y/N]: ").strip().lower()
+                start_hil = (ans == 'y')
+            except Exception:
+                start_hil = False
+        if start_hil and generated_schema_files:
+            print("\n🧑‍⚖️ Starting schema review...")
+            review_schemas_in_dir("specs")
     except Exception as e:
-        print(f"❌ Error in pipeline execution: {e}")
+        print(f"❌ Pipeline failed: {e}")
         import traceback
         traceback.print_exc()
 
-def test_gemini_directly():
-    """Test Gemini API directly"""
-    try:
-        from expansion.gemini_generator import GeminiGenerator
-        
-        print("🧪 Testing Gemini Directly...")
-        
-        # You'll need to set your API key here
-        api_key = os.getenv('GOOGLE_API_KEY')
-        if not api_key:
-            print("Please set GOOGLE_API_KEY environment variable")
-            return
-        
-        gemini = GeminiGenerator(api_key=api_key)
-        
-        test_texts = [
-            "Machine learning is amazing",
-            "Natural language processing helps computers understand human language"
-        ]
-        
-        for text in test_texts:
-            print(f"\nOriginal: {text}")
-            variations = gemini.generate_variations(text, num_variations=2)
-            print("Gemini Variations:")
-            for i, var in enumerate(variations, 1):
-                print(f"  {i}. {var}")
-                
-    except Exception as e:
-        print(f"Gemini test failed: {e}")
 
 if __name__ == "__main__":
-    # Run complete pipeline
     main()
-    
-    # Uncomment to test Gemini directly
-    # test_gemini_directly()
