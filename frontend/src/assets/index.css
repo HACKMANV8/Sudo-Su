@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar and base styles from our previous design */
+body, html {
+  height: 100%;
+  overflow: hidden;
+  background-color: #171717; /* --background-sidebar */
+  font-family: 'Inter', sans-serif;
+  color: #F1F1F1; /* --text-primary */
+}
+
+/* A simple fade-in animation for messages */
+@layer utilities {
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
