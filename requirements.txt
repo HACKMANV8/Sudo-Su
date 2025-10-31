@@ -13,3 +13,4 @@ google-genai>=1.47.0
 # PyTorch and Transformers for text generation
 torch>=2.2.0
 transformers>=4.35.0
+sentence-transformers>=2.7.0

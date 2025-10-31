@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 from preprocessing.spacy_preprocessor import SpacyTextPreprocessor
 from expansion.dataset_expander import DatasetExpander
+from evaluation.semantic_evaluator import SemanticEvaluator
+from review.human_review import review_csv
 
 def main():
     print("🚀 Starting Hackathon Pipeline with Google Gemini")
@@ -74,6 +76,50 @@ def main():
                 text_column="processed_text",
                 expansion_factor=2
             )
+
+            # ==================================================
+            # STEP 3: SEMANTIC EVALUATION & SIMILARITY CHECK
+            # ==================================================
+            print("\n" + "="*60)
+            print("MODULE 3: SEMANTIC EVALUATION & SIMILARITY CHECK")
+            print("="*60)
+            evaluator = SemanticEvaluator()
+            scored = evaluator.score_csv(
+                input_path="data/expanded_dataset_gemini.csv",
+                output_path="data/expanded_scored.csv",
+                text_column="processed_text",
+                original_ref_column="original_text",
+                threshold=0.75
+            )
+            auto_pass_count = int(scored['auto_pass'].sum()) if 'auto_pass' in scored.columns else 0
+            print(f"Auto-approved items: {auto_pass_count}/{len(scored)}")
+
+            # ==================================================
+            # STEP 4: HUMAN-IN-THE-LOOP REVIEW (optional)
+            # ==================================================
+            print("\n" + "="*60)
+            print("MODULE 4: HUMAN-IN-THE-LOOP REVIEW (optional)")
+            print("="*60)
+            start_review = os.getenv('HIL_REVIEW', '').lower() in ['1','true','yes','y']
+            if not start_review:
+                try:
+                    answer = input("Start interactive review for low-similarity items now? [y/N]: ").strip().lower()
+                    start_review = answer == 'y'
+                except Exception:
+                    start_review = False
+            if start_review:
+                review_csv(
+                    input_csv="data/expanded_scored.csv",
+                    output_csv="data/reviewed_dataset.csv",
+                    text_column="processed_text",
+                    original_ref_column="original_text",
+                    auto_accept_threshold=0.85,
+                    only_review_below=0.85
+                )
+            else:
+                print("Skipping interactive review. You can run it later:")
+                print("- Set HIL_REVIEW=1 and re-run main.py, or")
+                print("- From Python: from review.human_review import review_csv; review_csv('data/expanded_scored.csv','data/reviewed_dataset.csv')")
         else:
             print("❌ No API key provided. Using T5 fallback...")
             expander = DatasetExpander(use_gemini=False)
@@ -85,7 +131,7 @@ def main():
             )
         
         # ==================================================
-        # STEP 3: RESULTS SUMMARY
+        # STEP 5: RESULTS SUMMARY
         # ==================================================
         print("\n" + "="*60)
         print("🎉 PIPELINE COMPLETED SUCCESSFULLY!")
@@ -108,12 +154,44 @@ def main():
         print(f"   • Cleaned data: data/processed_data.csv")
         if api_key:
             print(f"   • Gemini expanded data: data/expanded_dataset_gemini.csv")
+            print(f"   • Scored data: data/expanded_scored.csv")
+            # If review file exists, list it too
+            if os.path.exists("data/reviewed_dataset.csv"):
+                print(f"   • Reviewed: data/reviewed_dataset.csv")
         else:
             print(f"   • T5 expanded data: data/expanded_dataset_t5.csv")
-        
-        print(f"\n🔮 NEXT STEPS:")
-        print(f"   • Module 3: Semantic Evaluation & Similarity Check")
-        print(f"   • Module 4: Human-in-the-Loop Correction")
+
+        # ==========================
+        # MODULE RESULTS SUMMARIES
+        # ==========================
+        if api_key:
+            # Evaluation summary
+            print("\n🧮 EVALUATION SUMMARY:")
+            try:
+                import pandas as pd
+                scored_df = pd.read_csv("data/expanded_scored.csv")
+                avg_sim = scored_df["similarity"].mean() if "similarity" in scored_df else None
+                avg_cov = scored_df["coverage"].mean() if "coverage" in scored_df else None
+                auto_pass = int(scored_df["auto_pass"].sum()) if "auto_pass" in scored_df else 0
+                total = len(scored_df)
+                if avg_sim is not None:
+                    print(f"   • Avg similarity: {avg_sim:.3f}")
+                if avg_cov is not None:
+                    print(f"   • Avg coverage: {avg_cov:.3f}")
+                print(f"   • Auto-approved: {auto_pass}/{total}")
+            except Exception:
+                print("   • Scored file not available for summary.")
+
+            # Human review summary (if present)
+            if os.path.exists("data/reviewed_dataset.csv"):
+                print("\n🧑‍⚖️ HUMAN REVIEW SUMMARY:")
+                try:
+                    reviewed_df = pd.read_csv("data/reviewed_dataset.csv")
+                    for status in ["accepted", "edited", "rejected", "pending"]:
+                        count = int((reviewed_df.get("status") == status).sum()) if "status" in reviewed_df else 0
+                        print(f"   • {status.capitalize()}: {count}")
+                except Exception:
+                    print("   • Could not read reviewed dataset summary.")
         
     except Exception as e:
         print(f"❌ Error in pipeline execution: {e}")
