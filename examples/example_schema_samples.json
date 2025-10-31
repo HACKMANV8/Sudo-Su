@@ -3,6 +3,7 @@
     "name": "hr_employees",
     "description": "HR core: employees with roles and start dates",
     "n_rows": 1000,
+    "metadata": {"use_crawl4ai": false},
     "fields": [
       {"name": "employee_id", "type": "string", "format": "uuid", "unique": true},
       {"name": "role", "type": "category", "categories": ["engineer", "manager", "hr", "finance"]},
@@ -14,6 +15,7 @@
     "name": "ecommerce_transactions",
     "description": "Order-line transactions",
     "n_rows": 5000,
+    "metadata": {"use_crawl4ai": false},
     "fields": [
       {"name": "order_id", "type": "string", "format": "uuid", "unique": true},
       {"name": "user_id", "type": "string"},
@@ -27,6 +29,7 @@
     "name": "session_logs",
     "description": "Web session logs with ip and success flag",
     "n_rows": 2000,
+    "metadata": {"use_crawl4ai": false},
     "fields": [
       {"name": "session_id", "type": "string", "format": "uuid", "unique": true},
       {"name": "ip", "type": "ip"},
@@ -39,6 +42,7 @@
     "name": "healthcare_patients",
     "description": "Patients with demographics and risk flags",
     "n_rows": 1500,
+    "metadata": {"use_crawl4ai": false},
     "fields": [
       {"name": "patient_id", "type": "string", "format": "uuid", "unique": true},
       {"name": "age", "type": "int", "min": 0, "max": 100},
@@ -51,6 +55,7 @@
     "name": "product_catalog",
     "description": "Products and categories with pricing",
     "n_rows": 1000,
+    "metadata": {"use_crawl4ai": false},
     "fields": [
       {"name": "sku", "type": "string", "unique": true},
       {"name": "name", "type": "string"},
@@ -62,6 +67,7 @@
     "name": "uniqueness_stress",
     "description": "Stress test unique key generation",
     "n_rows": 10000,
+    "metadata": {"use_crawl4ai": false},
     "fields": [
       {"name": "id", "type": "string", "format": "uuid", "unique": true},
       {"name": "bucket", "type": "category", "categories": ["b1", "b2", "b3"]},

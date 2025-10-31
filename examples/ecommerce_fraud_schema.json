@@ -1,0 +1,51 @@
+{
+  "name": "ecommerce_fraud_detection",
+  "description": "E-commerce transaction data with fraud indicators",
+  "n_rows": 5000,
+  "metadata": {"use_crawl4ai": false},
+  "fields": [
+    {
+      "name": "transaction_id",
+      "type": "string",
+      "format": "uuid",
+      "unique": true
+    },
+    {
+      "name": "customer_age",
+      "type": "int",
+      "min": 18,
+      "max": 80,
+      "mean": 35,
+      "std": 12
+    },
+    {
+      "name": "product_category",
+      "type": "category",
+      "categories": ["electronics", "clothing", "food", "books", "toys"],
+      "probs": [0.25, 0.25, 0.20, 0.15, 0.15]
+    },
+    {
+      "name": "purchase_amount",
+      "type": "float",
+      "min": 10,
+      "max": 5000,
+      "mean": 150,
+      "std": 120
+    },
+    {
+      "name": "payment_method",
+      "type": "category",
+      "categories": ["credit_card", "debit_card", "paypal", "bank_transfer"],
+      "probs": [0.50, 0.30, 0.15, 0.05]
+    },
+    {
+      "name": "is_fraud",
+      "type": "bool"
+    },
+    {
+      "name": "transaction_time",
+      "type": "datetime"
+    }
+  ]
+}
+

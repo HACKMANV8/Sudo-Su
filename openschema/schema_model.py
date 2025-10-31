@@ -38,6 +38,7 @@ class Field(BaseModel):
     probs: Optional[List[float]] = None
     examples: List[Any] = []
     metadata: Optional[Dict[str, Any]] = None
+    format: Optional[str] = None  # For string fields: uuid, email, name, etc.
 
     # Optional statistics if present in inputs; not required by spec but useful for summary
     mean: Optional[float] = None

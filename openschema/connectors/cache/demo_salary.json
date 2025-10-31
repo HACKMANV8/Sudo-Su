@@ -1,0 +1,10 @@
+{
+  "pages": [
+    {
+      "url": "cache://demo/salary",
+      "title": "Salary examples",
+      "text": "salary 3000 4000 5000 6000 7000 department sales sales hr eng"
+    }
+  ]
+}
+

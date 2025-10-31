@@ -214,7 +214,11 @@ def generate_validation_report(df: pd.DataFrame, schema: Dict[str, Any]) -> str:
     # Sample rows
     lines.append("")
     lines.append("## Sample rows")
-    lines.append(df.head(3).to_markdown(index=False))
+    try:
+        lines.append(df.head(3).to_markdown(index=False))
+    except ImportError:
+        # Fallback if tabulate not installed
+        lines.append(df.head(3).to_string(index=False))
 
     # Suggestions
     if realism["explanations"]:

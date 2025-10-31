@@ -32,6 +32,27 @@ def cmd_generate(ns: argparse.Namespace) -> int:
             target_rows=ns.target_rows,
             additional_rows=ns.additional_rows,
             force=getattr(ns, "force", False),
+            progressive=getattr(ns, "progressive", False),
+            use_crawl4ai=getattr(ns, "use_crawl4ai", False),
+            crawl_timeout=getattr(ns, "crawl_timeout", 10),
+            crawl_mode=getattr(ns, "crawl_mode", "cache"),
+            crawl_bypass_cache=getattr(ns, "crawl_bypass_cache", False),
+            evaluate_realism=getattr(ns, "evaluate_realism", False),
+            reference_csv=getattr(ns, "reference_csv", None),
+            simulate_privacy=getattr(ns, "simulate_privacy", False),
+            privacy_reference_csv=getattr(ns, "privacy_reference_csv", None),
+            quasi_identifiers=(ns.quasi_identifiers.split(',') if getattr(ns, 'quasi_identifiers', None) else None),
+            privacy_noise_level=getattr(ns, "privacy_noise_level", 0.01),
+            privacy_sample_size=getattr(ns, "privacy_sample_size", None),
+            ml_benchmark=getattr(ns, "ml_benchmark", False),
+            ml_target_column=getattr(ns, "ml_target_column", None),
+            auto_adapt=getattr(ns, "auto_adapt", False),
+            adapt_iterations=getattr(ns, "adapt_iterations", 5),
+            adapt_budget=getattr(ns, "adapt_budget", 1000),
+            adaptive_tune=getattr(ns, "adaptive_tune", False),
+            tune_iterations=getattr(ns, "tune_iterations", 5),
+            tune_budget=getattr(ns, "tune_budget", 5000),
+            objective=getattr(ns, "objective", "balanced"),
         )
         if not res.get("ok"):
             print(f"ERROR: {res.get('error')}")
@@ -75,8 +96,10 @@ def cmd_smoke(ns: argparse.Namespace) -> int:
             schema = dict(data)
         schema["n_rows"] = 100
         res = run_pipeline_from_schema(schema, seed="smoke")
-        ok = res.get("ok") and res["validation"]["ok"]
-        print(f"SMOKE: {'PASS' if ok else 'FAIL'} | rows={res['generation_report']['rows_generated']} realism={res['realism']['realism_score']:.2f}")
+        ok = res.get("ok") and res.get("validation", {}).get("ok", False)
+        rows = res.get("generation_report", {}).get("rows_generated", 0)
+        realism = res.get("realism", {}).get("realism_score", 0.0)
+        print(f"SMOKE: {'PASS' if ok else 'FAIL'} | rows={rows} realism={realism:.2f}")
         if ns.verbose:
             _print(res, True)
         return 0 if ok else 1
@@ -98,6 +121,27 @@ def main() -> None:
     p_gen.add_argument("--mode", choices=["append", "augment"], default=None)
     p_gen.add_argument("--target-rows", type=int, default=None)
     p_gen.add_argument("--additional-rows", type=int, default=None)
+    p_gen.add_argument("--progressive", action="store_true")
+    p_gen.add_argument("--use-crawl4ai", action="store_true")
+    p_gen.add_argument("--crawl-timeout", type=int, default=10)
+    p_gen.add_argument("--crawl-mode", choices=["cache", "llm", "scrape", "upload"], default="cache")
+    p_gen.add_argument("--crawl-bypass-cache", action="store_true")
+    p_gen.add_argument("--evaluate-realism", action="store_true")
+    p_gen.add_argument("--reference-csv", dest="reference_csv", default=None)
+    p_gen.add_argument("--simulate-privacy", action="store_true")
+    p_gen.add_argument("--privacy-reference-csv", dest="privacy_reference_csv", default=None)
+    p_gen.add_argument("--privacy-noise-level", dest="privacy_noise_level", type=float, default=0.01)
+    p_gen.add_argument("--privacy-sample-size", dest="privacy_sample_size", type=int, default=None)
+    p_gen.add_argument("--quasi-identifiers", dest="quasi_identifiers", default=None)
+    p_gen.add_argument("--ml-benchmark", action="store_true")
+    p_gen.add_argument("--ml-target-column", dest="ml_target_column", default=None)
+    p_gen.add_argument("--auto-adapt", action="store_true")
+    p_gen.add_argument("--adapt-iterations", dest="adapt_iterations", type=int, default=5)
+    p_gen.add_argument("--adapt-budget", dest="adapt_budget", type=int, default=1000)
+    p_gen.add_argument("--adaptive-tune", action="store_true")
+    p_gen.add_argument("--tune-iterations", dest="tune_iterations", type=int, default=5)
+    p_gen.add_argument("--tune-budget", dest="tune_budget", type=int, default=5000)
+    p_gen.add_argument("--objective", choices=["realism", "utility", "privacy", "balanced"], default="balanced")
     p_gen.add_argument("--force", action="store_true")
     p_gen.add_argument("--verbose", action="store_true")
     p_gen.set_defaults(func=cmd_generate)

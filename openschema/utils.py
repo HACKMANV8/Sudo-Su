@@ -32,6 +32,42 @@ def normalize_seed(seed_input: int | str) -> int:
     return int(seed_input) & ((1 << 64) - 1)
 
 
+# New ergonomic seed APIs
+def to_normalized_seed(seed_input: int | str) -> int:
+    return normalize_seed(seed_input)
+
+
+def _to_base36(n: int) -> str:
+    if n == 0:
+        return "0"
+    digits = []
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    while n > 0:
+        n, r = divmod(n, 36)
+        digits.append(alphabet[r])
+    return "".join(reversed(digits))
+
+
+def _from_base36(s: str) -> int:
+    s = s.strip().upper()
+    alphabet = {c: i for i, c in enumerate("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")}
+    n = 0
+    for ch in s:
+        n = n * 36 + alphabet[ch]
+    return n
+
+
+def short_seed_token(normalized_seed: int, length: int = 8) -> str:
+    base = _to_base36(normalized_seed)
+    if len(base) >= length:
+        return base[:length]
+    return (base + ("0" * length))[:length]
+
+
+def seed_from_short_token(token: str) -> int:
+    return _from_base36(token)
+
+
 def init_seed(seed: int | str) -> np.random.Generator:
     """Initialize deterministic RNG state across Python random, NumPy, and Faker.
 

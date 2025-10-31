@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 import uuid
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional, Literal, Callable
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,9 @@ from .utils import (
     deterministic_uuid,
     compute_file_hash,
 )
+from .conditional import learn_conditionals_from_csv
+from .copula import apply_rank_copula
+from .anomalies import generate_anomalies
 
 
 ROLE_SALARY_DEFAULTS: Dict[str, Tuple[float, float]] = {
@@ -69,6 +72,13 @@ def generate_from_schema(
     mode: Optional[str] = None,
     target_rows: Optional[int] = None,
     additional_rows: Optional[int] = None,
+    preview_rows: Optional[int] = None,
+    chunk_size: Optional[int] = None,
+    on_chunk_generated: Optional[Callable[[pd.DataFrame, Dict[str, Any]], None]] = None,
+    gen_mode: Literal['fast','hf'] = 'fast',
+    use_rank_copula: bool = False,
+    repair_policy: Literal['append_index','uuid_suffix','fail'] = 'append_index',
+    anomaly_spec: Optional[Dict[str, Any]] = None,
 ) -> tuple[pd.DataFrame, Dict[str, Any]]:
     start_time = time.time()
     rng_master = init_seed(seed)
@@ -81,6 +91,8 @@ def generate_from_schema(
     faker = Faker()
 
     n_rows = int(schema.get("n_rows", 0))
+    if preview_rows is not None:
+        n_rows = int(preview_rows)
     if n_rows <= 0:
         n_rows = 0
     if n_rows > max_rows_limit and not force:
@@ -259,7 +271,56 @@ def generate_from_schema(
 
         elif ftype == "float":
             dist = (f.get("distribution") or "uniform").lower()
-            if dist == "normal":
+            # Check for conditional generation (category -> amount)
+            conditional_driver = None
+            conditional_mappings = None
+            # Look for category fields that might drive this numeric field
+            for cat_f in fields:
+                if cat_f.get("type") == "category":
+                    cat_name = cat_f.get("name")
+                    if cat_name in col_data and cat_name:
+                        # Check if schema has conditional mappings
+                        meta = f.get("metadata") or {}
+                        cond_map = meta.get("conditional_on")
+                        if cond_map and cat_name in cond_map:
+                            conditional_driver = cat_name
+                            conditional_mappings = cond_map[cat_name]
+                            break
+                        # Auto-detect common patterns: category -> amount/price
+                        if ("category" in cat_name.lower() or "product" in cat_name.lower()) and ("amount" in name.lower() or "price" in name.lower() or "cost" in name.lower()):
+                            conditional_driver = cat_name
+                            # Default realistic mappings
+                            conditional_mappings = {
+                                "electronics": {"mean": 800, "std": 400},
+                                "clothing": {"mean": 150, "std": 100},
+                                "food": {"mean": 50, "std": 30},
+                                "books": {"mean": 25, "std": 15},
+                                "toys": {"mean": 100, "std": 60}
+                            }
+                            break
+            
+            if conditional_driver and conditional_mappings:
+                category_values = col_data[conditional_driver]
+                vals = []
+                for cat in category_values:
+                    mapping = conditional_mappings.get(str(cat), {})
+                    if mapping:
+                        mu = float(mapping.get("mean", f.get("mean", 150)))
+                        sd = float(mapping.get("std", f.get("std", 50)))
+                        val = rng_fields.normal(loc=mu, scale=sd)
+                        # Clamp to min/max if specified
+                        if f.get("min") is not None:
+                            val = max(float(f.get("min")), val)
+                        if f.get("max") is not None:
+                            val = min(float(f.get("max")), val)
+                        vals.append(val)
+                    else:
+                        # Fallback to normal distribution
+                        mu = float(f.get("mean", 0.0))
+                        sd = float(f.get("std", 1.0))
+                        vals.append(rng_fields.normal(loc=mu, scale=sd))
+                vals = vals
+            elif dist == "normal":
                 mu = float(f.get("mean", 0.0))
                 sd = float(f.get("std", 1.0))
                 vals = rng_fields.normal(loc=mu, scale=sd, size=n_rows).tolist()
@@ -273,7 +334,12 @@ def generate_from_schema(
 
         elif ftype == "string":
             fmt = (f.get("format") or "").lower()
-            if fmt == "uuid":
+            # If crawl examples provided, sample deterministically
+            crawl_examples = (schema.get("metadata", {}).get("crawl_examples", {}) or {}).get(name)
+            if crawl_examples:
+                ex_rng = np.random.default_rng(derive_subseed(master_norm, f"examples::{name}"))
+                vals = ex_rng.choice(list(crawl_examples), size=n_rows, replace=True).tolist()
+            elif fmt == "uuid":
                 ns = derive_subseed(master_norm, f"uuid::{name}")
                 vals = [deterministic_uuid(ns, i, name) for i in range(n_rows)]
             elif fmt == "email":
@@ -320,6 +386,8 @@ def generate_from_schema(
 
     df = pd.DataFrame(col_data, columns=[f.get("name") for f in fields if f.get("name") in col_data])
 
+    # Rank-copula adjustment if requested later
+
     # If augment/append, integrate with existing CSV
     if df_existing is not None and (mode or "") in {"append", "augment"}:
         add_n = int(additional_rows or 0)
@@ -352,6 +420,22 @@ def generate_from_schema(
         df = combined
 
     duration = time.time() - start_time
+
+    # Apply rank copula if requested
+    if use_rank_copula and df_existing is not None:
+        num_cols = [f["name"] for f in fields if f.get("type") in {"int", "float"} and f["name"] in df.columns]
+        if num_cols and len(df_existing) >= 10 and len(df) > 0:
+            df = apply_rank_copula(df_existing, df, num_cols)
+
+    # Anomaly injection
+    injected = []
+    if anomaly_spec and isinstance(anomaly_spec, dict):
+        n_anom = int(anomaly_spec.get("n", 0) or 0)
+        if n_anom > 0:
+            an_rng = np.random.default_rng(derive_subseed(master_norm, "anomalies"))
+            df_anom = generate_anomalies(schema, n_anom, anomaly_spec, an_rng)
+            df = pd.concat([df, df_anom], ignore_index=True)
+            injected = df_anom.head(5).to_dict(orient="records")
 
     # Stats
     per_field_stats: Dict[str, Dict[str, Any]] = {}
@@ -387,7 +471,14 @@ def generate_from_schema(
         "source_csv_hash": csv_hash,
         "original_row_count": original_row_count,
         "added_rows": int(len(df)) - int(original_row_count),
+        "injected_anomalies": injected,
     }
+
+    # Progressive chunk callback
+    if chunk_size and on_chunk_generated:
+        for i in range(0, len(df), int(chunk_size)):
+            ch = df.iloc[i : i + int(chunk_size)]
+            on_chunk_generated(ch, {"offset": i, "rows": len(ch)})
 
     return df, report
 
