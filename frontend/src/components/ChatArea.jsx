@@ -9,13 +9,11 @@ import { sendMessageToChat, subscribeToChatMessages } from '../firebase/rtdb.js'
 const ChatArea = ({ activeChatId }) => {
   const { currentUser } = useAuth();
 
-  // messages are either loaded from RTDB (when logged in and chat selected) or local mocks when not
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'user', text: 'Generate 1000 rows from ecommerce.yaml', createdAt: Date.now() },
-    { id: 2, sender: 'assistant', text: 'Okay, I am generating 1000 rows based on the provided `ecommerce.yaml` schema...', createdAt: Date.now() + 1000 },
-  ]);
+  // messages are loaded from RTDB when logged in and chat selected
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const messagesEndRef = useRef(null);
 
   // Automatically scroll to the bottom when a new message appears
@@ -25,15 +23,24 @@ const ChatArea = ({ activeChatId }) => {
 
   // Subscribe to RTDB messages for the selected chat when a user is logged in
   useEffect(() => {
-    if (!currentUser || !activeChatId) return;
+    if (!currentUser || !activeChatId) {
+      setMessages([]);
+      setIsLoadingMessages(false);
+      return;
+    }
 
+    setIsLoadingMessages(true);
     const uid = currentUser.uid;
     const unsubscribe = subscribeToChatMessages(uid, activeChatId, (msgs) => {
       const normalized = msgs.map(m => ({ id: m.id, sender: m.sender, text: m.text, createdAt: m.createdAt }));
       setMessages(normalized);
+      setIsLoadingMessages(false);
     });
 
-    return () => unsubscribe && unsubscribe();
+    return () => {
+      unsubscribe && unsubscribe();
+      setIsLoadingMessages(false);
+    };
   }, [currentUser, activeChatId]);
 
   // Handles sending a new message
@@ -86,8 +93,17 @@ const ChatArea = ({ activeChatId }) => {
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 md:p-8">
         <div className="max-w-3xl mx-auto flex flex-col gap-6">
-          {messages.map(msg => <Message key={msg.id} message={msg} />)}
-          <div ref={messagesEndRef} />
+          {isLoadingMessages ? (
+            <div className="text-center py-8 text-[#A0A0A0] flex items-center justify-center gap-2">
+              <LoadingDots size="w-2 h-2" color="bg-[#A0A0A0]" />
+              <span>Loading chats...</span>
+            </div>
+          ) : (
+            <>
+              {messages.map(msg => <Message key={msg.id} message={msg} />)}
+              <div ref={messagesEndRef} />
+            </>
+          )}
         </div>
       </div>
 

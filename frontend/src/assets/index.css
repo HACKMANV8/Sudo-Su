@@ -7,7 +7,7 @@ body, html {
   height: 100%;
   overflow: hidden;
   background-color: #171717; /* --background-sidebar */
-  font-family: 'Inter', sans-serif;
+  font-family: 'Poppins', 'Inter', sans-serif;
   color: #F1F1F1; /* --text-primary */
   font-weight: 400;
   -webkit-font-smoothing: antialiased;

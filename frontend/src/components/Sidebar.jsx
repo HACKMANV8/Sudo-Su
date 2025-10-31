@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NewChatIcon } from './Icons.jsx';
+import { NewChatIcon, EditIcon, DeleteIcon } from './Icons.jsx';
 import LoadingDots from './LoadingDots.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { subscribeToUserChats, createChatForUser, updateChatTitle, removeChatForUser } from '../firebase/rtdb.js';
@@ -59,9 +59,10 @@ const ChatItem = ({ item, currentUser, activeChatId, onSelectChat, onClose }) =>
             e.stopPropagation();
             setIsEditing(true);
           }}
-          className="p-1 text-[#A0A0A0] hover:text-[#F1F1F1]"
+          className="p-1.5 text-[#A0A0A0] hover:text-[#F1F1F1] transition-colors"
+          aria-label="Rename chat"
         >
-          ✏️
+          <EditIcon />
         </button>
         <button
           onClick={async (e) => {
@@ -72,9 +73,10 @@ const ChatItem = ({ item, currentUser, activeChatId, onSelectChat, onClose }) =>
               console.error('Failed to delete chat:', error);
             }
           }}
-          className="p-1 text-[#A0A0A0] hover:text-red-500"
+          className="p-1.5 text-[#A0A0A0] hover:text-red-500 transition-colors"
+          aria-label="Delete chat"
         >
-          🗑️
+          <DeleteIcon />
         </button>
       </div>
     </div>
@@ -129,9 +131,9 @@ const Sidebar = ({ isOpen, onClose, activeChatId, onSelectChat }) => {
         className={`fixed md:static top-0 left-0 w-64 h-full bg-[#171717] flex-shrink-0 p-4 flex flex-col border-r border-[#2A2931] z-20
                    transition-transform transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
-        <div className="flex items-center justify-end mb-6 h-9">
+        <div className="flex items-center justify-center mb-6">
           <button
-            className="flex items-center justify-center p-2 border border-[#2A2931] rounded-lg text-[#A0A0A0] hover:border-[#F1F1F1] hover:text-[#F1F1F1]"
+            className="flex items-center justify-center gap-2 px-4 py-3 w-full border border-[#2A2931] rounded-xl text-[#A0A0A0] hover:border-[#9333ea] hover:text-[#F1F1F1] transition-all font-medium"
             aria-label="New session"
             onClick={async () => {
               if (!currentUser) return;
@@ -144,6 +146,7 @@ const Sidebar = ({ isOpen, onClose, activeChatId, onSelectChat }) => {
             }}
           >
             <NewChatIcon />
+            <span>New Chat</span>
           </button>
         </div>
         <nav className="flex-grow overflow-y-auto">
