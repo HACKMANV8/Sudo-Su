@@ -53,22 +53,39 @@ class SpacyTextPreprocessor:
             # Process with spaCy
             doc = self.nlp(cleaned_text)
             
-            # Extract meaningful tokens
+            # Extract meaningful tokens with POS and entities
             tokens = []
+            entities = []
+            pos_tags = []
+            key_phrases = []
+            
+            # Extract named entities
+            for ent in doc.ents:
+                if len(ent.text.strip()) > 1:
+                    entities.append((ent.text, ent.label_))
+
+            # Extract noun phrases as key phrases
+            for chunk in doc.noun_chunks:
+                if len(chunk.text.strip()) > 2:  # Longer phrases only
+                    key_phrases.append(chunk.text.strip())
+
             for token in doc:
-                # Filter conditions
+                # Enhanced filter conditions
                 if (not token.is_stop and           # Remove stopwords
                     not token.is_punct and          # Remove punctuation
                     not token.is_space and          # Remove spaces
                     len(token.lemma_.strip()) > 1 and  # Remove single characters
-                    token.is_alpha):                # Keep only alphabetic
+                    (token.is_alpha or              # Keep alphabetic
+                     (token.pos_ in ['NUM', 'SYM'] and token.has_vector))):  # Keep meaningful numbers/symbols
                     
                     # Use the actual word if lemma is messed up
                     lemma = token.lemma_.strip()
                     if len(lemma) <= 1:  # If lemmatization gives weird results
                         lemma = token.text.lower()
                     
+                    # Store token with its POS tag
                     tokens.append(lemma)
+                    pos_tags.append(token.pos_)
             
             # Additional cleanup: remove any remaining single characters
             tokens = [token for token in tokens if len(token) > 1]
@@ -78,10 +95,22 @@ class SpacyTextPreprocessor:
             elif return_type == "string":
                 return " ".join(tokens)
             elif return_type == "full":
+                # Extract key sentences (important for context)
+                key_sentences = []
+                for sent in doc.sents:
+                    # Score sentence based on entity presence and token importance
+                    score = sum(1 for token in sent if token.pos_ in ['NOUN', 'VERB', 'ADJ', 'PROPN'])
+                    if score >= 2:  # Only keep informative sentences
+                        key_sentences.append(sent.text)
+
                 return {
                     "original": text,
                     "cleaned": cleaned_text,
                     "tokens": tokens,
+                    "pos_tags": pos_tags,
+                    "entities": entities,
+                    "key_phrases": key_phrases,
+                    "key_sentences": key_sentences,
                     "processed_text": " ".join(tokens),
                     "sentence_count": len(list(doc.sents)),
                     "token_count": len(tokens)

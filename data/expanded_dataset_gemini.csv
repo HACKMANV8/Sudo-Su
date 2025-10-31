@@ -1,0 +1,14 @@
+id,text,category,processed_text,processed_text_tokens,expansion_type,original_text,generation_method
+1,Hello world! This is amazing.,general,"Hello, amazing world!","['hello', 'world', 'amazing']",generated,hello world amazing,gemini+template
+1,Hello world! This is amazing.,general,"Hello, world! It is amazing.","['hello', 'world', 'amazing']",generated,hello world amazing,gemini+template
+1,Hello world! This is amazing.,general,hello world amazing,"['hello', 'world', 'amazing']",original,hello world amazing,original
+2,The quick brown fox jumps over the lazy dog.,animals,A quick brown fox is jumping over a lazy dog.,"['quick', 'brown', 'fox', 'jump', 'lazy', 'dog']",generated,quick brown fox jump lazy dog,gemini+template
+2,The quick brown fox jumps over the lazy dog.,animals,The quick brown fox jumps over the lazy dog.,"['quick', 'brown', 'fox', 'jump', 'lazy', 'dog']",generated,quick brown fox jump lazy dog,gemini+template
+2,The quick brown fox jumps over the lazy dog.,animals,quick brown fox jump lazy dog,"['quick', 'brown', 'fox', 'jump', 'lazy', 'dog']",original,quick brown fox jump lazy dog,original
+3,I love machine learning and artificial intelligence!,ai,It is love for machine learning and artificial intelligence.,"['love', 'machine', 'learning', 'artificial', 'intelligence']",generated,love machine learning artificial intelligence,gemini+template
+3,I love machine learning and artificial intelligence!,ai,love machine learning artificial intelligence,"['love', 'machine', 'learning', 'artificial', 'intelligence']",original,love machine learning artificial intelligence,original
+4,Text preprocessing is essential for NLP projects.,nlp,Text preprocessing is essential for an NLP project.,"['text', 'preprocessing', 'essential', 'nlp', 'project']",generated,text preprocessing essential nlp project,gemini+template
+4,Text preprocessing is essential for NLP projects.,nlp,"For an NLP project, text preprocessing is essential.","['text', 'preprocessing', 'essential', 'nlp', 'project']",generated,text preprocessing essential nlp project,gemini+template
+4,Text preprocessing is essential for NLP projects.,nlp,text preprocessing essential nlp project,"['text', 'preprocessing', 'essential', 'nlp', 'project']",original,text preprocessing essential nlp project,original
+5,Spark NLP makes everything so much easier!,tools,Spark makes NLP easy.,"['spark', 'nlp', 'make', 'easy']",generated,spark nlp make easy,gemini+template
+5,Spark NLP makes everything so much easier!,tools,spark nlp make easy,"['spark', 'nlp', 'make', 'easy']",original,spark nlp make easy,original

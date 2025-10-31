@@ -3,3 +3,13 @@ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1
 pandas==2.0.3
 numpy==1.24.3
 python-dateutil==2.8.2
+google-generativeai>=0.3.2
+python-dotenv==1.0.0
+tqdm==4.66.1
+
+# Google GenAI SDK (newer GenAI client)
+google-genai>=1.47.0
+
+# PyTorch and Transformers for text generation
+torch>=2.2.0
+transformers>=4.35.0
