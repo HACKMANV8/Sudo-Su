@@ -1,28 +1,71 @@
 [
   {
-    "name": "employee_records",
-    "description": "normalized employee schema",
+    "name": "hr_employees",
+    "description": "HR core: employees with roles and start dates",
     "n_rows": 1000,
     "fields": [
-      {"name": "id", "type": "int", "unique": true},
-      {"name": "role", "type": "category", "categories": ["staff", "manager", "exec"]},
+      {"name": "employee_id", "type": "string", "format": "uuid", "unique": true},
+      {"name": "role", "type": "category", "categories": ["engineer", "manager", "hr", "finance"]},
+      {"name": "salary", "type": "int"},
       {"name": "start_date", "type": "datetime"}
     ]
   },
   {
-    "name": "web_events",
+    "name": "ecommerce_transactions",
+    "description": "Order-line transactions",
+    "n_rows": 5000,
     "fields": [
-      {"name": "event_id", "type": "string", "unique": true},
-      {"name": "ip_address", "type": "ip"},
-      {"name": "success", "type": "bool", "nullable": 0.0}
+      {"name": "order_id", "type": "string", "format": "uuid", "unique": true},
+      {"name": "user_id", "type": "string"},
+      {"name": "product_id", "type": "string"},
+      {"name": "quantity", "type": "int", "min": 1, "max": 10},
+      {"name": "price", "type": "float", "min": 0, "max": 10000},
+      {"name": "purchased_at", "type": "datetime"}
+    ]
+  },
+  {
+    "name": "session_logs",
+    "description": "Web session logs with ip and success flag",
+    "n_rows": 2000,
+    "fields": [
+      {"name": "session_id", "type": "string", "format": "uuid", "unique": true},
+      {"name": "ip", "type": "ip"},
+      {"name": "user_agent", "type": "string"},
+      {"name": "success", "type": "bool"},
+      {"name": "started_at", "type": "datetime"}
+    ]
+  },
+  {
+    "name": "healthcare_patients",
+    "description": "Patients with demographics and risk flags",
+    "n_rows": 1500,
+    "fields": [
+      {"name": "patient_id", "type": "string", "format": "uuid", "unique": true},
+      {"name": "age", "type": "int", "min": 0, "max": 100},
+      {"name": "sex", "type": "category", "categories": ["F", "M"]},
+      {"name": "risk_flag", "type": "bool"},
+      {"name": "admit_date", "type": "datetime"}
     ]
   },
   {
     "name": "product_catalog",
+    "description": "Products and categories with pricing",
+    "n_rows": 1000,
     "fields": [
       {"name": "sku", "type": "string", "unique": true},
-      {"name": "price", "type": "float", "min": 0, "max": 1000},
-      {"name": "category", "type": "category", "categories": ["a", "b", "c"]}
+      {"name": "name", "type": "string"},
+      {"name": "category", "type": "category", "categories": ["a", "b", "c", "d"]},
+      {"name": "price", "type": "float", "min": 0, "max": 5000}
+    ]
+  },
+  {
+    "name": "uniqueness_stress",
+    "description": "Stress test unique key generation",
+    "n_rows": 10000,
+    "fields": [
+      {"name": "id", "type": "string", "format": "uuid", "unique": true},
+      {"name": "bucket", "type": "category", "categories": ["b1", "b2", "b3"]},
+      {"name": "x", "type": "float", "min": 0, "max": 1}
     ]
   }
 ]

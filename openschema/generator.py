@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 import uuid
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -15,6 +15,7 @@ from .utils import (
     derive_subseed,
     normalize_seed,
     deterministic_uuid,
+    compute_file_hash,
 )
 
 
@@ -63,6 +64,11 @@ def generate_from_schema(
     seed: int | str = 42,
     fast_mode: bool = True,
     max_rows_limit: int = 5_000_000,
+    force: bool = False,
+    source_csv: Optional[str] = None,
+    mode: Optional[str] = None,
+    target_rows: Optional[int] = None,
+    additional_rows: Optional[int] = None,
 ) -> tuple[pd.DataFrame, Dict[str, Any]]:
     start_time = time.time()
     rng_master = init_seed(seed)
@@ -77,13 +83,69 @@ def generate_from_schema(
     n_rows = int(schema.get("n_rows", 0))
     if n_rows <= 0:
         n_rows = 0
-    if n_rows > max_rows_limit:
-        raise ValueError(f"Requested rows {n_rows} exceeds max_rows_limit {max_rows_limit}")
+    if n_rows > max_rows_limit and not force:
+        raise ValueError(
+            f"Requested rows {n_rows} exceeds safety limit {max_rows_limit}. "
+            f"Use --force to override (may consume significant memory/CPU)."
+        )
 
     fields: List[Dict[str, Any]] = schema.get("fields", [])
     col_data: Dict[str, List[Any]] = {}
     repairs: List[str] = []
     warnings: List[str] = []
+    original_row_count: int = 0
+    csv_hash: Optional[str] = None
+
+    # Ingestion: if source_csv provided, load and seed augmentation params
+    df_existing: Optional[pd.DataFrame] = None
+    if source_csv:
+        df_existing = pd.read_csv(source_csv)
+        csv_hash = compute_file_hash(source_csv, algo="md5")
+        original_row_count = len(df_existing)
+        # Validate columns present
+        missing = [f["name"] for f in fields if f["name"] not in df_existing.columns]
+        if missing:
+            raise ValueError(f"CSV missing required columns: {missing}")
+
+        # Empirical distributions for categories
+        empirical_probs: Dict[str, np.ndarray] = {}
+        for f in fields:
+            if f.get("type") == "category":
+                s = df_existing[f["name"]].dropna()
+                vc = s.value_counts()
+                if len(vc) > 0:
+                    probs = (vc / vc.sum()).reindex(f.get("categories", list(vc.index))).fillna(0.0).to_numpy()
+                    if probs.sum() > 0:
+                        empirical_probs[f["name"]] = probs
+        # Conditional role->salary
+        cond_means: Dict[str, Tuple[float, float]] = {}
+        if "role" in df_existing.columns and "salary" in df_existing.columns:
+            g = df_existing.groupby("role")["salary"].agg(["mean", "std"]).fillna(0.0)
+            if len(g) >= 1:
+                for r, row in g.iterrows():
+                    cond_means[str(r)] = (float(row["mean"]), float(row["std"]) or 1.0)
+                # override defaults if present
+                ROLE_SALARY_DEFAULTS.update(cond_means)
+
+        # Determine rows to add
+        if (mode or "").lower() == "append":
+            if not target_rows:
+                raise ValueError("append mode requires target_rows")
+            if target_rows < original_row_count:
+                warnings.append("target_rows less than existing rows; no rows appended")
+                additional_rows = 0
+            else:
+                additional_rows = target_rows - original_row_count
+        elif (mode or "").lower() == "augment":
+            if additional_rows is None:
+                raise ValueError("augment mode requires additional_rows")
+        else:
+            # default: generate from scratch
+            pass
+
+        # For append/augment, set generation rows to additional_rows
+        if (mode or "") in {"append", "augment"}:
+            n_rows = int(additional_rows or 0)
 
     # Handle class balance if specified at top level for a 'label' field
     class_balance = schema.get("class_balance")
@@ -103,6 +165,17 @@ def generate_from_schema(
             perm = rng_fields.permutation(n_rows)
             labels = labels[perm]
             precomputed_label = labels.tolist()
+
+    # Conditional overrides from schema metadata
+    overrides = (schema.get("metadata") or {}).get("conditional_overrides") or {}
+    if isinstance(overrides, dict) and overrides:
+        for role, vals in overrides.items():
+            try:
+                mu = float(vals.get("mean"))
+                sd = float(vals.get("std", 1.0)) or 1.0
+                ROLE_SALARY_DEFAULTS[str(role)] = (mu, sd)
+            except Exception:
+                warnings.append(f"Invalid conditional_overrides for role {role}")
 
     # Detect conditional driver (role)
     role_field_name = None
@@ -170,7 +243,10 @@ def generate_from_schema(
                 if unique:
                     domain = hi - lo + 1
                     if domain < n_rows:
-                        raise ValueError(f"Field '{name}' requires {n_rows} unique ints but domain size is {domain}")
+                        raise ValueError(
+                            f"Uniqueness impossible: field '{name}' needs {n_rows} unique ints in range [{lo},{hi}] (size {domain}). "
+                            f"Increase max, widen range, or disable unique."
+                        )
                     vals = rng_fields.choice(np.arange(lo, hi + 1), size=n_rows, replace=False).astype(int).tolist()
                 else:
                     vals = rng_fields.integers(lo, hi + 1, size=n_rows).tolist()
@@ -178,6 +254,7 @@ def generate_from_schema(
                 # Already ensured in uniform branch; for other branches, fallback to suffix if collisions
                 if dist != "uniform" and (len(set(vals)) < len(vals)):
                     vals = _ensure_unique(vals, name, rng_fields, repairs)
+                    warnings.append(f"Unique repairs applied for field '{name}' by suffixing duplicates")
             col_data[name] = vals
 
         elif ftype == "float":
@@ -243,6 +320,37 @@ def generate_from_schema(
 
     df = pd.DataFrame(col_data, columns=[f.get("name") for f in fields if f.get("name") in col_data])
 
+    # If augment/append, integrate with existing CSV
+    if df_existing is not None and (mode or "") in {"append", "augment"}:
+        add_n = int(additional_rows or 0)
+        if add_n > 0:
+            # Use empirical category probs where available
+            for f in fields:
+                if f.get("type") == "category" and f["name"] in df.columns and f.get("probs") is None:
+                    cats = f.get("categories") or []
+                    # We already sampled earlier; for simplicity, keep as-is since row count matches
+                    pass
+            # Ensure unique key not colliding with existing
+            for f in fields:
+                if f.get("unique") and f.get("type") == "string" and (f.get("format") or "").lower() == "uuid":
+                    name = f["name"]
+                    existing_set = set(df_existing[name].astype(str).tolist())
+                    vals = df[name].astype(str).tolist()
+                    fixed: List[str] = []
+                    idx = 0
+                    for v in vals:
+                        nv = v
+                        while nv in existing_set:
+                            idx += 1
+                            nv = deterministic_uuid(derive_subseed(master_norm, f"uuid::{name}"), idx + n_rows, name)
+                        existing_set.add(nv)
+                        fixed.append(nv)
+                    df[name] = fixed
+            combined = pd.concat([df_existing, df.iloc[:add_n]], ignore_index=True)
+        else:
+            combined = df_existing.copy()
+        df = combined
+
     duration = time.time() - start_time
 
     # Stats
@@ -271,10 +379,14 @@ def generate_from_schema(
         "duration_seconds": float(duration),
         "warnings": warnings,
         "repairs": repairs,
+        "suggestions": [],
         "per_field_stats": per_field_stats,
         "schema_hash": schema_hash,
         "csv_hash": csv_md5,
         "fingerprint": hashlib.md5(f"{master_norm}:{schema_hash}:{csv_md5}".encode("utf-8")).hexdigest(),
+        "source_csv_hash": csv_hash,
+        "original_row_count": original_row_count,
+        "added_rows": int(len(df)) - int(original_row_count),
     }
 
     return df, report

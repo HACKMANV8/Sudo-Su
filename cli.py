@@ -22,7 +22,17 @@ def cmd_generate(ns: argparse.Namespace) -> int:
             norm = validate_schema(schema)
             print(schema_summary(norm))
             return 0
-        res = run_pipeline_from_schema(schema, seed=ns.seed, out_csv=ns.out, verbose=ns.verbose)
+        res = run_pipeline_from_schema(
+            schema,
+            seed=ns.seed,
+            out_csv=ns.out,
+            verbose=ns.verbose,
+            source_csv=ns.source_csv,
+            mode=ns.mode,
+            target_rows=ns.target_rows,
+            additional_rows=ns.additional_rows,
+            force=getattr(ns, "force", False),
+        )
         if not res.get("ok"):
             print(f"ERROR: {res.get('error')}")
             return 1
@@ -84,6 +94,11 @@ def main() -> None:
     p_gen.add_argument("--seed", default=42)
     p_gen.add_argument("--out", dest="out", default=None)
     p_gen.add_argument("--confirm-schema", action="store_true", dest="confirm_schema")
+    p_gen.add_argument("--source-csv", dest="source_csv", default=None)
+    p_gen.add_argument("--mode", choices=["append", "augment"], default=None)
+    p_gen.add_argument("--target-rows", type=int, default=None)
+    p_gen.add_argument("--additional-rows", type=int, default=None)
+    p_gen.add_argument("--force", action="store_true")
     p_gen.add_argument("--verbose", action="store_true")
     p_gen.set_defaults(func=cmd_generate)
 
