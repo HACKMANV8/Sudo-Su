@@ -1,17 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>OpenSchema Harvester</title>
-  <style>
-    body { width: 300px; padding: 10px; font-family: sans-serif; }
-    h1 { font-size: 1.2em; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-    #result { margin-top: 10px; font-weight: bold; color: green; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenSchema Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDKs (loaded locally) -->
+    <script src="lib/firebase-app-compat.js"></script>
+    <script src="lib/firebase-auth-compat.js"></script>
+    <script src="lib/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h1>OpenSchema Harvester</h1>
-  <button id="captureButton">Capture Schema</button>
-  <p id="result">Click the button to scan the page.</p>
-  <script src="popup.js"></script>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo-icon">⚡</div>
+                <span class="logo-text">OpenSchema</span>
+            </div>
+            <button id="logoutBtn" class="logout-btn" style="display: none;">
+                <span>Logout</span>
+            </button>
+        </header>
+
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="logo-icon large">⚡</div>
+                    <h2 id="modalTitle">Welcome Back</h2>
+                </div>
+                
+                <div id="errorMsg" class="error-msg"></div>
+                <div id="successMsg" class="success-msg"></div>
+
+                <form id="authForm">
+                    <div class="input-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" placeholder="you@example.com" required>
+                    </div>
+
+                    <div id="passwordGroup" class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+
+                    <div id="confirmPasswordGroup" class="input-group" style="display: none;">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" placeholder="••••••••">
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="submit-btn">
+                        <span id="submitText">Login</span>
+                        <div id="submitLoader" class="loader" style="display: none;"></div>
+                    </button>
+                </form>
+
+                <div class="modal-footer">
+                    <button type="button" id="toggleAuthBtn" class="link-btn">
+                        Don't have an account? <span>Sign Up</span>
+                    </button>
+                    <button type="button" id="forgotPasswordBtn" class="link-btn">
+                        Forgot password?
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Interface -->
+        <div id="chatInterface" class="chat-interface" style="display: none;">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <button id="newChatBtn" class="new-chat-btn">
+                    <span>➕</span> New Chat
+                </button>
+                <div id="chatsList" class="chats-list">
+                    <div class="loading-text">Loading chats...</div>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="chat-area">
+                <div id="messagesContainer" class="messages-container">
+                    <div class="empty-state">Select a chat or create a new one to start</div>
+                </div>
+
+                <div class="input-area">
+                    <div class="url-checkbox-container">
+                        <label class="url-checkbox-label">
+                            <input type="checkbox" id="includeUrlCheckbox" checked>
+                            <span class="url-text" id="urlText">Include current page URL</span>
+                        </label>
+                    </div>
+                    <div class="input-area-row">
+                        <input type="text" id="messageInput" placeholder="Type your message..." />
+                        <button id="sendBtn" class="send-btn">
+                            <span>→</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script src="popup.js"></script>
 </body>
 </html>

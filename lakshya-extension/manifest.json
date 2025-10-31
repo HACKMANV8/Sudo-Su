@@ -1,18 +1,24 @@
 {
   "manifest_version": 3,
-  "name": "OpenSchema Data Harvester",
-  "version": "1.0",
-  "description": "Capture schemas and patterns for OpenSchema's synthetic data engine.",
+  "name": "OpenSchema Chat",
+  "version": "1.0.0",
+  "description": "Chat with OpenSchema to generate, evaluate and tune synthetic datasets",
   "action": {
     "default_popup": "popup.html"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
-    }
+  "permissions": [
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
-    "<all_urls>"
-  ]
+    "https://*.firebaseio.com/*",
+    "https://*.firebaseapp.com/*",
+    "https://*.googleapis.com/*",
+    "https://*.gstatic.com/*",
+    "https://fonts.googleapis.com/*",
+    "https://fonts.gstatic.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
 }
