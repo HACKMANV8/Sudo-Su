@@ -472,3 +472,86 @@ body {
     background: #3A3941;
 }
 
+/* General Styling for SVG in Header and Modal */
+.header-logo,
+.modal-logo {
+    width: 24px; /* Adjust as needed */
+    height: 24px; /* Adjust as needed */
+    fill: currentColor; /* Allows the SVG to inherit color from parent */
+    vertical-align: middle;
+}
+
+/* Specific styling for the logo in the header if different sizing is desired */
+.header .logo-icon .header-logo {
+    width: 24px; /* Example size */
+    height: 24px; /* Example size */
+}
+
+/* Specific styling for the logo in the modal header if different sizing is desired */
+.modal-header .logo-icon.large .modal-logo {
+    width: 48px; /* Larger size for the modal */
+    height: 48px; /* Larger size for the modal */
+}
+
+/* Ensure the .logo-icon container correctly aligns children */
+.logo-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center; /* For centering the icon if it's the only child */
+}
+
+/* If you want the text and icon to be aligned in the header */
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Space between logo and text */
+}
+
+.logo-text {
+    font-size: 1.2em; /* Adjust as needed */
+    font-weight: 600;
+    color: var(--text-color); /* Ensure it uses your theme's text color */
+}
+
+/* General button styling (from previous interactions, included for completeness) */
+button {
+    cursor: pointer;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.logout-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.logout-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Modal styles (from previous interactions, included for completeness) */
+.modal-content {
+    background-color: var(--bg-secondary);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.modal-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin-top: 15px;
+    color: var(--text-color);
+}

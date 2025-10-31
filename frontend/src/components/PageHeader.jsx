@@ -1,5 +1,10 @@
+// File: frontend/src/components/PageHeader.jsx
+
 import React, { useState } from 'react';
-import { LogoIcon, MenuIcon, LogoutIcon } from './Icons.jsx';
+// FIX: Remove LogoIcon, import LogoSVG
+import { MenuIcon, LogoutIcon } from './Icons.jsx';
+import LogoSVG from './LogoSVG.jsx'; // <-- New Logo Import
+// Assuming AuthContext is correct, keep these imports
 import { useAuth } from '../context/AuthContext.jsx';
 import { signOutUser } from '../firebase/auth.js';
 
@@ -12,7 +17,8 @@ const PageHeader = ({ onMenuClick }) => {
   };
 
   const handleConfirmLogout = () => {
-    signOutUser();
+    // Assuming signOutUser() is defined in your auth file and works
+    signOutUser(); 
     setShowConfirm(false);
   };
 
@@ -23,7 +29,6 @@ const PageHeader = ({ onMenuClick }) => {
   return (
     <header className="py-5 px-4 text-center flex-shrink-0 bg-[#171717]">
       <div className="flex items-center justify-center relative">
-        {/* Mobile Menu Button (Hamburger) */}
         <button
           onClick={onMenuClick}
           className="md:hidden absolute left-4 p-1 text-[#A0A0A0] hover:text-[#F1F1F1]"
@@ -32,15 +37,17 @@ const PageHeader = ({ onMenuClick }) => {
           <MenuIcon />
         </button>
 
-        {/* Logo and Tagline */}
         <div className="flex flex-col items-center relative w-full">
           <div className="flex items-center justify-center gap-3 text-2xl font-semibold text-[#F1F1F1]">
-            <LogoIcon />
+            {/* FIX: Use the new LogoSVG component */}
+            <LogoSVG width="26px" height="26px" /> 
             <span>OpenSchema</span>
           </div>
           <p className="mt-2 text-base text-[#A0A0A0] px-4">
             Chat with me to generate, evaluate and tune synthetic datasets.
           </p>
+          
+          {/* Logout Button Logic (Your existing code) */}
           {currentUser && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
               {!showConfirm ? (

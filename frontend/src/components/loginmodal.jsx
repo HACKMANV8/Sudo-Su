@@ -1,5 +1,8 @@
+// File: frontend/src/components/LoginModal.jsx (Updated)
+
 import React, { useState } from 'react';
-import { LogoIcon } from './Icons.jsx';
+// IMPORT CHANGE: Replace LogoIcon with LogoSVG
+import LogoSVG from './LogoSVG.jsx'; // <--- UPDATED IMPORT
 import LoadingDots from './LoadingDots.jsx';
 import { signIn, signUp, sendPasswordReset } from '../firebase/auth.js';
 
@@ -50,6 +53,10 @@ const LoginModal = () => {
       if (error) {
         setError(error);
       }
+      // Assuming successful login/signup would navigate away,
+      // or a message would be sent to the extension here.
+      // (This logic needs to be added if not already handled by a parent component)
+
     } catch (err) {
       setError('An error occurred. Please try again.');
     } finally {
@@ -58,15 +65,11 @@ const LoginModal = () => {
   };
 
   return (
-    // Full-screen dark overlay
     <div className="modal-overlay">
-
-      {/* Modal Content Box */}
       <div className="modal-content">
-        {/* The close button has been removed to force login/signup */}
-
         <div className="flex justify-center mb-6">
-          <LogoIcon />
+          {/* USAGE CHANGE: Replace LogoIcon with LogoSVG */}
+          <LogoSVG width="60px" height="60px" /> {/* Adjust size as needed */}
         </div>
 
         <h2 className="modal-title">
@@ -74,7 +77,6 @@ const LoginModal = () => {
         </h2>
 
         <form onSubmit={handleSubmit}>
-          {/* Form fields */}
           {error && (
             <div className="text-red-500 text-sm mb-4">
               {error}
@@ -87,7 +89,6 @@ const LoginModal = () => {
             </div>
           )}
 
-          {/* Email field (used by login, signup, and reset) */}
           <div className="input-group">
             <label htmlFor="email">Email</label>
             <input
@@ -100,7 +101,6 @@ const LoginModal = () => {
             />
           </div>
 
-          {/* Show password fields only for login/signup */}
           {!isResetView && (
             <>
               <div className="input-group">
@@ -131,7 +131,6 @@ const LoginModal = () => {
             </>
           )}
 
-          {/* Submit Button */}
           <button 
             type="submit" 
             className="modal-submit-btn flex items-center justify-center gap-2"
@@ -148,9 +147,7 @@ const LoginModal = () => {
           </button>
         </form>
 
-        {/* Toggle between Login / Sign Up */}
         <p className="modal-toggle-text">
-          {/* When in reset view show a back-to-login button */}
           {isResetView ? (
             <>
               Need to login?{' '}
@@ -172,7 +169,6 @@ const LoginModal = () => {
               >
                 {isLoginView ? 'Sign Up' : 'Login'}
               </button>
-              {/* Forgot password link shown only on login view */}
               {isLoginView && (
                 <button
                   type="button"
@@ -191,5 +187,3 @@ const LoginModal = () => {
 };
 
 export default LoginModal;
-
-
