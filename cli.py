@@ -57,6 +57,12 @@ def cmd_generate(ns: argparse.Namespace) -> int:
             use_relational_generation=getattr(ns, "use_relational_generation", False),
             rel_min_samples=getattr(ns, "rel_min_samples", 20),
             rel_smoothing_alpha=getattr(ns, "rel_smoothing_alpha", 1.0),
+            use_llm_priors=getattr(ns, "use_llm_priors", False),
+            llm_model=getattr(ns, "llm_model", "gemini"),
+            llm_temperature=getattr(ns, "llm_temperature", 0.0),
+            llm_cache_dir=getattr(ns, "llm_cache_dir", None),
+            llm_bypass_cache=getattr(ns, "llm_bypass_cache", False),
+            llm_max_tokens=getattr(ns, "llm_max_tokens", 4096),
         )
         if not res.get("ok"):
             print(f"ERROR: {res.get('error')}")
@@ -150,6 +156,12 @@ def main() -> None:
     p_gen.add_argument("--use-relational-generation", action="store_true")
     p_gen.add_argument("--rel-min-samples", dest="rel_min_samples", type=int, default=20)
     p_gen.add_argument("--rel-smoothing-alpha", dest="rel_smoothing_alpha", type=float, default=1.0)
+    p_gen.add_argument("--use-llm-priors", action="store_true")
+    p_gen.add_argument("--llm-model", dest="llm_model", type=str, default="gemini")
+    p_gen.add_argument("--llm-temperature", dest="llm_temperature", type=float, default=0.0)
+    p_gen.add_argument("--llm-cache-dir", dest="llm_cache_dir", default=None)
+    p_gen.add_argument("--llm-bypass-cache", action="store_true")
+    p_gen.add_argument("--llm-max-tokens", dest="llm_max_tokens", type=int, default=4096)
     p_gen.add_argument("--force", action="store_true")
     p_gen.add_argument("--verbose", action="store_true")
     p_gen.set_defaults(func=cmd_generate)

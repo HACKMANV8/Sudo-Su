@@ -23,7 +23,11 @@ from .optimizer.smartsampler import smart_adapt
 from .optimizer.adaptive_engine import run_adaptive_tuning
 from .learners.relational_learner import RelationalLearner
 from .generator.relational_generator import generate_relational
+from .llm.prior_extractor import extract_priors_from_description, PriorsParseError
+from .llm.prior_converter import convert_llm_priors_to_relational
 import time
+
+log = logging.getLogger(__name__)
 
 
 def _json_canonical(obj: Any) -> str:
@@ -168,6 +172,12 @@ def run_pipeline_from_schema(
     use_relational_generation: bool = False,
     rel_min_samples: int = 20,
     rel_smoothing_alpha: float = 1.0,
+    use_llm_priors: bool = False,
+    llm_model: str = "gemini",
+    llm_temperature: float = 0.0,
+    llm_cache_dir: Optional[str] = None,
+    llm_bypass_cache: bool = False,
+    llm_max_tokens: int = 4096,
 ) -> Dict[str, Any]:
     try:
         normalized = validate_schema(dict(schema))
@@ -189,6 +199,52 @@ def run_pipeline_from_schema(
             )
             normalized = enriched
             crawl_meta = cmeta
+
+        # LLM Priors Extraction
+        llm_meta: Dict[str, Any] = {"used": False}
+        llm_priors: Optional[Dict[str, Any]] = None
+        if use_llm_priors:
+            try:
+                schema_fp = _hash_str(_json_canonical(normalized), algo="sha256")
+                result = extract_priors_from_description(
+                    schema=normalized,
+                    user_description="",
+                    sample_csv_path=reference_csv,
+                    model=llm_model,
+                    temperature=llm_temperature,
+                    max_tokens=llm_max_tokens,
+                    cache_dir=llm_cache_dir,
+                    bypass_cache=llm_bypass_cache,
+                    schema_fingerprint=schema_fp,
+                    api_key_env="GEMINI_API_KEY" if llm_model == "gemini" else "OPENAI_API_KEY",
+                )
+                llm_priors = result.get("priors_json")
+                llm_meta = {
+                    "used": True,
+                    "model": result.get("llm_meta", {}).get("model", llm_model),
+                    "priors_cache_key": result.get("cache_key", ""),
+                    "prompt_hash": result.get("llm_meta", {}).get("prompt_hash", ""),
+                    "redactions": result.get("redactions", {}),
+                    "execution_time_seconds": result.get("execution_time_seconds", 0),
+                    "warnings": [],
+                }
+                
+                # Merge priors into schema metadata
+                if llm_priors:
+                    if "metadata" not in normalized:
+                        normalized["metadata"] = {}
+                    normalized["metadata"]["llm_priors"] = llm_priors
+                
+            except PriorsParseError as e:
+                log.warning("LLM priors parsing failed: %s", e)
+                llm_meta["used"] = False
+                llm_meta["error"] = str(e)
+                llm_meta["warnings"] = [f"Priors parsing failed: {e}"]
+            except Exception as e:
+                log.warning("LLM priors extraction failed: %s", e)
+                llm_meta["used"] = False
+                llm_meta["error"] = str(e)
+                llm_meta["warnings"] = [f"LLM extraction failed: {e}"]
 
         # Relational learning
         learned_priors: Optional[Dict[str, Any]] = None
@@ -225,18 +281,50 @@ def run_pipeline_from_schema(
             progress_collector["rows"] += int(meta.get("rows", len(ch_df)))
 
         # Generation: use relational generator if enabled and priors available
-        if use_relational_generation and learned_priors:
-            try:
-                n_rows_final = target_rows or normalized.get("n_rows", 1000)
-                df, rel_gen_report = generate_relational(normalized, n_rows_final, seed, learned_priors)
-                gen_report = {"rows_generated": n_rows_final}
-                gen_report["relational"] = rel_gen_report
-                relational_meta["generation"] = True
-            except Exception as e:
-                logging.getLogger(__name__).warning("Relational generation failed, falling back to standard: %s", e)
-                relational_meta["generation"] = False
-                relational_meta["fallback_error"] = str(e)
-                # Fallback to standard generation
+        # Prefer LLM priors if available, convert to relational format
+        if use_relational_generation and (llm_priors or learned_priors):
+            priors_to_use = None
+            if llm_priors:
+                # Convert LLM priors to relational format
+                try:
+                    priors_to_use = convert_llm_priors_to_relational(llm_priors, normalized)
+                    log.info("Converted LLM priors to relational format")
+                except Exception as e:
+                    log.warning("Failed to convert LLM priors to relational format: %s, trying learned_priors", e)
+                    priors_to_use = learned_priors
+            elif learned_priors:
+                priors_to_use = learned_priors
+            
+            if priors_to_use:
+                try:
+                    n_rows_final = target_rows or normalized.get("n_rows", 1000)
+                    df, rel_gen_report = generate_relational(normalized, n_rows_final, seed, priors_to_use)
+                    gen_report = {"rows_generated": n_rows_final}
+                    gen_report["relational"] = rel_gen_report
+                    relational_meta["generation"] = True
+                except Exception as e:
+                    logging.getLogger(__name__).warning("Relational generation failed, falling back to standard: %s", e)
+                    relational_meta["generation"] = False
+                    relational_meta["fallback_error"] = str(e)
+                    # Fallback to standard generation
+                    df, gen_report = generate_from_schema(
+                        normalized,
+                        seed=seed,
+                        source_csv=source_csv,
+                        mode=mode,
+                        target_rows=target_rows,
+                        additional_rows=additional_rows,
+                        force=force,
+                        preview_rows=None,
+                        chunk_size=progress_step if progressive else None,
+                        on_chunk_generated=_on_chunk if progressive else None,
+                        gen_mode=generator_mode,
+                        use_rank_copula=use_rank_copula,
+                        repair_policy=repair_policy,
+                        anomaly_spec=anomaly_spec,
+                    )
+            else:
+                # No priors available, fallback
                 df, gen_report = generate_from_schema(
                     normalized,
                     seed=seed,
@@ -296,6 +384,9 @@ def run_pipeline_from_schema(
         # Include crawl cache key in fingerprint when used
         if crawl_meta.get("used") and crawl_meta.get("cache_key"):
             fp_payload["crawl_cache_key"] = crawl_meta["cache_key"]
+        # Include LLM priors cache key in fingerprint
+        if llm_meta.get("used") and llm_meta.get("priors_cache_key"):
+            fp_payload["llm_priors_cache_key"] = llm_meta["priors_cache_key"]
         fp_hex = _hash_str(_json_canonical(fp_payload), algo="sha256")
         fingerprint = f"sha256:{fp_hex}"
 

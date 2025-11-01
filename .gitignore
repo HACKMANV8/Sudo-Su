@@ -1,9 +1,36 @@
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 .pytest_cache/
-*.pyc
 .venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
-data/
-*.csv
+Thumbs.db
 
+# Project-specific
+data/*.csv
+output/
+*.log
 
+# Temporary files
+*.tmp
+tmp/
+.tmp/
+
+# Cache directories
+.openschema/
+/tmp/openschema_*

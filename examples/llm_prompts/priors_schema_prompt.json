@@ -1,0 +1,108 @@
+{
+  "template": "SYSTEM:\nYou are a structured priors extractor. Output EXACTLY one JSON object and nothing else. Follow the schema below.\n\nUSER:\n\nSchema (JSON): {schema_json}\n\nUser description: {user_description}\n\nOptional sample rows (JSON array, or empty): {sample_rows_json}\n\nInstructions:\n\n1. For each column in the schema, produce a priors entry describing type and distribution. For categoricals include category list and sensible probabilities summing to 1. For numeric include distribution type and numeric params (mean,std,min,max) when confidently inferable; otherwise mark 'empirical' and provide examples.\n\n2. Provide conditional entries where sensible (e.g., if product_category == 'Electronics' then product_price ~ lognormal(...)).\n\n3. Provide up to 50 example rows reflecting the priors.\n\n4. No PII in examples. If any sample rows in input contained PII, redact them and note redaction in a 'notes' field.\n\n5. Output no commentary — strict JSON ONLY.\n\nReturn the JSON object now.",
+  "few_shot_examples": [
+    {
+      "schema": {
+        "name": "employee_data",
+        "fields": [
+          {"name": "department", "type": "category"},
+          {"name": "salary", "type": "float"}
+        ]
+      },
+      "priors_json": {
+        "schema_hint": {
+          "columns": [
+            {"name": "department", "type": "categorical", "notes": "Company departments"},
+            {"name": "salary", "type": "numeric", "notes": "Annual salary in USD"}
+          ],
+          "notes": "Employee compensation data"
+        },
+        "priors": {
+          "department": {
+            "type": "categorical",
+            "categories": ["engineering", "sales", "hr", "finance"],
+            "probs": [0.4, 0.3, 0.15, 0.15],
+            "notes": "Common departments"
+          },
+          "salary": {
+            "type": "numeric",
+            "distribution": {
+              "type": "normal",
+              "params": {"mean": 80000, "std": 25000, "min": 40000, "max": 200000}
+            },
+            "conditionals": [
+              {
+                "when": {"department": "engineering"},
+                "distribution": {"type": "normal", "params": {"mean": 120000, "std": 20000}},
+                "note": "Engineers earn more"
+              }
+            ],
+            "notes": "Salary distribution with department dependency"
+          }
+        },
+        "dependencies": [
+          {"parent": "department", "child": "salary", "explanation": "Salary depends on department"}
+        ],
+        "examples": [
+          {"department": "engineering", "salary": 125000},
+          {"department": "sales", "salary": 75000}
+        ]
+      }
+    },
+    {
+      "schema": {
+        "name": "ecommerce_transactions",
+        "fields": [
+          {"name": "product_category", "type": "category"},
+          {"name": "purchase_amount", "type": "float"}
+        ]
+      },
+      "priors_json": {
+        "schema_hint": {
+          "columns": [
+            {"name": "product_category", "type": "categorical", "notes": "Product categories"},
+            {"name": "purchase_amount", "type": "numeric", "notes": "Transaction amount"}
+          ],
+          "notes": "E-commerce transaction data"
+        },
+        "priors": {
+          "product_category": {
+            "type": "categorical",
+            "categories": ["electronics", "clothing", "food", "books"],
+            "probs": [0.3, 0.3, 0.25, 0.15],
+            "notes": "Product categories with realistic frequencies"
+          },
+          "purchase_amount": {
+            "type": "numeric",
+            "distribution": {
+              "type": "lognormal",
+              "params": {"mean": 150, "std": 100, "min": 10, "max": 5000}
+            },
+            "conditionals": [
+              {
+                "when": {"product_category": "electronics"},
+                "distribution": {"type": "lognormal", "params": {"mean": 800, "std": 400}},
+                "note": "Electronics are expensive"
+              },
+              {
+                "when": {"product_category": "food"},
+                "distribution": {"type": "lognormal", "params": {"mean": 50, "std": 30}},
+                "note": "Food items are cheaper"
+              }
+            ],
+            "notes": "Purchase amount varies by category"
+          }
+        },
+        "dependencies": [
+          {"parent": "product_category", "child": "purchase_amount", "explanation": "Price depends on category"}
+        ],
+        "examples": [
+          {"product_category": "electronics", "purchase_amount": 899.99},
+          {"product_category": "food", "purchase_amount": 45.50},
+          {"product_category": "clothing", "purchase_amount": 79.99}
+        ]
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,31 @@
+{
+  "name": "simple_employee",
+  "description": "Simple employee dataset for testing",
+  "n_rows": 100,
+  "fields": [
+    {
+      "name": "employee_id",
+      "type": "string",
+      "format": "uuid",
+      "unique": true
+    },
+    {
+      "name": "department",
+      "type": "category",
+      "categories": ["engineering", "sales", "hr"]
+    },
+    {
+      "name": "salary",
+      "type": "float",
+      "min": 40000,
+      "max": 200000
+    },
+    {
+      "name": "years_experience",
+      "type": "int",
+      "min": 0,
+      "max": 40
+    }
+  ]
+}
+

@@ -188,6 +188,24 @@ def generate_from_schema(
                 ROLE_SALARY_DEFAULTS[str(role)] = (mu, sd)
             except Exception:
                 warnings.append(f"Invalid conditional_overrides for role {role}")
+    
+    # Extract LLM priors from metadata if available
+    llm_priors_dict = (schema.get("metadata") or {}).get("llm_priors", {})
+    llm_conditional_mappings = {}
+    if llm_priors_dict:
+        llm_deps = llm_priors_dict.get("dependencies", [])
+        for dep in llm_deps:
+            if isinstance(dep, dict):
+                parent = dep.get("parent") or dep.get("from")
+                child = dep.get("child") or dep.get("to")
+                condition = dep.get("condition") or dep.get("rule")
+                
+                # Store conditional mappings for numeric fields
+                if parent and child and isinstance(condition, dict):
+                    # Map format: {field_name: {parent_col: {parent_val: {mean, std}}}}
+                    if child not in llm_conditional_mappings:
+                        llm_conditional_mappings[child] = {}
+                    llm_conditional_mappings[child][parent] = condition
 
     # Detect conditional driver (role)
     role_field_name = None
@@ -225,8 +243,21 @@ def generate_from_schema(
             continue
 
         if ftype == "category":
-            cats = f.get("categories") or []
-            probs = f.get("probs")
+            # Check LLM priors for categorical distribution
+            llm_col_prior = None
+            if llm_priors_dict:
+                llm_priors_cols = llm_priors_dict.get("priors", {})
+                llm_col_prior = llm_priors_cols.get(name)
+            
+            if llm_col_prior and llm_col_prior.get("type") == "categorical":
+                # Use LLM-provided categories and probabilities
+                cats = llm_col_prior.get("categories", f.get("categories", []))
+                probs = llm_col_prior.get("probs", f.get("probs"))
+            else:
+                # Use schema categories
+                cats = f.get("categories") or []
+                probs = f.get("probs")
+            
             if not cats:
                 vals = [None] * n_rows
             else:
@@ -237,6 +268,25 @@ def generate_from_schema(
             col_data[name] = vals
 
         elif ftype == "int":
+            # Check LLM priors for numeric distribution
+            llm_col_prior = None
+            if llm_priors_dict:
+                llm_priors_cols = llm_priors_dict.get("priors", {})
+                llm_col_prior = llm_priors_cols.get(name)
+            
+            # Override schema params with LLM priors if available
+            if llm_col_prior and llm_col_prior.get("type") == "numeric":
+                dist_info = llm_col_prior.get("distribution", {})
+                if isinstance(dist_info, dict):
+                    if f.get("mean") is None:
+                        f["mean"] = dist_info.get("mean")
+                    if f.get("std") is None:
+                        f["std"] = dist_info.get("std")
+                    if f.get("min") is None:
+                        f["min"] = dist_info.get("min")
+                    if f.get("max") is None:
+                        f["max"] = dist_info.get("max")
+            
             dist = (f.get("distribution") or "uniform").lower()
             if role_field_name and "salary" in name and role_values is not None:
                 # Conditional per-role salary
@@ -270,6 +320,25 @@ def generate_from_schema(
             col_data[name] = vals
 
         elif ftype == "float":
+            # Check LLM priors for numeric distribution
+            llm_col_prior = None
+            if llm_priors_dict:
+                llm_priors_cols = llm_priors_dict.get("priors", {})
+                llm_col_prior = llm_priors_cols.get(name)
+            
+            # Override schema params with LLM priors if available
+            if llm_col_prior and llm_col_prior.get("type") == "numeric":
+                dist_info = llm_col_prior.get("distribution", {})
+                if isinstance(dist_info, dict):
+                    if f.get("mean") is None:
+                        f["mean"] = dist_info.get("mean")
+                    if f.get("std") is None:
+                        f["std"] = dist_info.get("std")
+                    if f.get("min") is None:
+                        f["min"] = dist_info.get("min")
+                    if f.get("max") is None:
+                        f["max"] = dist_info.get("max")
+            
             dist = (f.get("distribution") or "uniform").lower()
             # Check for conditional generation (category -> amount)
             conditional_driver = None
@@ -285,6 +354,11 @@ def generate_from_schema(
                         if cond_map and cat_name in cond_map:
                             conditional_driver = cat_name
                             conditional_mappings = cond_map[cat_name]
+                            break
+                        # Check LLM priors for conditional mappings
+                        if name in llm_conditional_mappings and cat_name in llm_conditional_mappings[name]:
+                            conditional_driver = cat_name
+                            conditional_mappings = llm_conditional_mappings[name][cat_name]
                             break
                         # Auto-detect common patterns: category -> amount/price
                         if ("category" in cat_name.lower() or "product" in cat_name.lower()) and ("amount" in name.lower() or "price" in name.lower() or "cost" in name.lower()):
