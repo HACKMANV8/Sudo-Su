@@ -5,6 +5,9 @@ __pycache__/
 *.so
 .Python
 .pytest_cache/
+*.egg-info/
+dist/
+build/
 .venv/
 venv/
 ENV/
@@ -16,14 +19,31 @@ env/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
 
 # OS
 .DS_Store
 Thumbs.db
+*.lnk
 
-# Project-specific
+# Node.js / Frontend
+node_modules/
+npm-debug.log*
+yarn-error.log
+.pnpm-debug.log
+.npm/
+.yarn/
+dist/
+build/
+.cache/
+
+# Project-specific data and outputs
 data/*.csv
+!data/README.md
 output/
+!output/README.md
 *.log
 
 # Temporary files
@@ -34,3 +54,30 @@ tmp/
 # Cache directories
 .openschema/
 /tmp/openschema_*
+*.cache
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test outputs and artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.hypothesis/
+*.cover
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
